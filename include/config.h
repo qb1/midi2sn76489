@@ -1,0 +1,1 @@
+#define REFRESH_RATE 10    // refresh rate for note updates in ms
