@@ -2,7 +2,7 @@
 
 #include "config.h"
 #include "board.h"
-#include "control.h"
+#include "synth.h"
 
 #include "MIDIUSB.h"
 #define USE_TIMER_3     true
@@ -13,11 +13,9 @@ void startTimers();
 void setup()
 {
 	setupBoard();
-    setupControl();
+    setupSynth();
 
 	startTimers();
-
-	selectChip(0);
 }
 
 void loop() {
@@ -64,7 +62,7 @@ void loop() {
 
 void TimerHandler()
 {
-	updateChannels();
+	updateSynth();
 }
 
 void startTimers()

@@ -1,3 +1,5 @@
+#include <Arduino.h>
+
 /*
  * Define low-level function to handle the board:
  *  - setup
@@ -13,11 +15,11 @@ void setupBoard();
 void selectAllChips(bool select);
 
 // Select specified chip, unselect every other.
-void selectChip(unsigned char chip);
+void selectChip(byte chip);
 
 // All functions act on selected chip, if any.
 void muteAll();
-void updateVolume(unsigned char chip_channel, unsigned char value);
-void updateFreq(unsigned char chip_channel, unsigned int value);
-void updateNoise(unsigned char value);
+void updateVolume(byte chip_channel, byte value);
+void updateFreq(byte chip_channel, unsigned int value);
+void updateNoise(byte value);
 
