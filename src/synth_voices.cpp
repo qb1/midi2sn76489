@@ -5,10 +5,6 @@
 #include "midi_defs.h"
 #include "board.h"
 
-struct Envelope {
-	unsigned int rel;
-};
-
 struct VoiceState {
 	int chip;
     int chip_channel;
@@ -69,10 +65,11 @@ void updateSynthVoices()
     }
 }
 
-void startVoice(byte voice, byte pitch) {
+void startVoice(byte voice, byte pitch, Envelope envelope) {
     VoiceState& v = voices[voice % VOICES_COUNT];
 	v.volume = 15; // Max volume
 	v.on_going_slope = false;
+    v.envelope = envelope;
     selectChip(v.chip);
     updateFreq(v.chip_channel, NOTES[pitch]);
 	updateVolume(v.chip_channel, v.volume);
@@ -100,5 +97,11 @@ bool isVoiceActive(byte voice)
 {
     VoiceState& v = voices[voice % VOICES_COUNT];
 	return v.volume != 0;
+}
+
+int voiceVolume(byte voice)
+{
+    VoiceState& v = voices[voice % VOICES_COUNT];
+	return v.volume;
 }
 

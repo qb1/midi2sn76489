@@ -13,6 +13,8 @@ struct VoiceProperties {
     byte pitch;
 };
 
+Envelope envelope;
+
 VoiceProperties voice_properties[VOICES_COUNT];
 
 byte findAvailableVoice();
@@ -24,6 +26,7 @@ void setupSynth() {
     for (int i=0; i < VOICES_COUNT; ++i) {
         resetVoiceProperties(i);
     }
+    envelope = { .rel = 1000, };
 }
 
 void updateSynth() {
@@ -33,6 +36,7 @@ void updateSynth() {
 byte findAvailableVoice()
 {
     unsigned int lowest_prio = -1;
+    int lowest_volume = 0xff;
     byte lowest_prio_voice = 0xff;
 
     for (int i=0; i < VOICES_COUNT; ++i) {
@@ -43,7 +47,15 @@ byte findAvailableVoice()
             return i;
         }
 
-        if (voice_properties[i].priority <= lowest_prio) {
+        int volume = voiceVolume(i);
+
+        // No voice available
+        // Determine which voice to drop, in order of priority:
+        // - lowest volume
+        // - oldest 
+        if ((volume < lowest_volume) || 
+            (volume == lowest_volume && voice_properties[i].priority < lowest_prio)) {
+            lowest_volume = volume;
             lowest_prio = voice_properties[i].priority;
             lowest_prio_voice = i;
         }
@@ -81,30 +93,24 @@ byte findVoice(byte channel, byte pitch)
 }
 
 void noteOn(byte channel, byte pitch, byte velocity) {	
-	Serial.print("noteOn channel=");
+	/*Serial.print("noteOn channel=");
 	Serial.print(channel);
 	Serial.print(", pitch=");
-	Serial.println(pitch);
+	Serial.println(pitch);*/
 	
 	byte voice = findAvailableVoice();
     if (voice == 0xff) {
         Serial.println("No available voice");
         return;
     }
-    
-    Serial.print("Starting voice");
-    Serial.println(voice);
 
     updateVoiceProperties(voice, channel, pitch);
-    startVoice(voice, pitch);
+    startVoice(voice, pitch, envelope);
 }
 
 void noteOff(byte channel, byte pitch, byte velocity) {
     byte voice = findVoice(channel, pitch);
-     while (voice != 0xff) {       
-        Serial.print("Stopping voice");
-        Serial.println(voice);
-
+     while (voice != 0xff) {
         stopVoice(voice);
         resetVoiceProperties(voice);
 
@@ -113,6 +119,8 @@ void noteOff(byte channel, byte pitch, byte velocity) {
 }
 
 void controlChange(byte channel, byte control, byte value) {
+    envelope.rel = 5000 / 127 * value;
+
 	Serial.print("Control change: control=");
 	Serial.print(control);
 	Serial.print(", value=");

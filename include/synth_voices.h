@@ -10,6 +10,11 @@ void setupSynthVoices();
 // Called periodically by synth
 void updateSynthVoices();
 
-void startVoice(byte voice, byte pitch);
+struct Envelope {
+	unsigned int rel;
+};
+
+void startVoice(byte voice, byte pitch, Envelope envelope);
 void stopVoice(byte voice);
 bool isVoiceActive(byte voice);
+int voiceVolume(byte voice);
