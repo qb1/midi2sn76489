@@ -1,3 +1,4 @@
+#pragma once
 #include <Arduino.h>
 
 /*
@@ -5,7 +6,7 @@
  */
 
 struct Envelope {
-	unsigned int rel;
+	unsigned int rel = 0;
 };
 
 struct VoiceEffect {
@@ -19,23 +20,34 @@ struct VoiceEffect {
 };
 
 struct SynthChannel {
+    enum Type {
+        Music,
+        Drum
+    };
+
+    Type type;
     Envelope envelope;
     int voiceCount;
     VoiceEffect effect; // No effect allowed if voiceCount > 1
 
     const int midiChannel;
 
+    static SynthChannel* makeDrum(int midiChannel, const int voiceCount) {
+        return new SynthChannel(Drum, midiChannel, Envelope(), VoiceEffect(), voiceCount);
+    }
+
     static SynthChannel* makePolyphonic(int midiChannel, const Envelope& envelope, const int voiceCount) {
-        return new SynthChannel(midiChannel, envelope, VoiceEffect(), voiceCount);
+        return new SynthChannel(Music, midiChannel, envelope, VoiceEffect(), voiceCount);
     }
 
     static SynthChannel* makeArpeggio(int midiChannel, const Envelope& envelope, const int speed) {
-        return new SynthChannel(midiChannel, envelope, { .type = VoiceEffect::Arpeggio, .speed = speed }, 1);
+        return new SynthChannel(Music, midiChannel, envelope, { .type = VoiceEffect::Arpeggio, .speed = speed }, 1);
     }
 
 private:
-    SynthChannel(int midiChannel, const Envelope& envelope, const VoiceEffect& effect, const int voiceCount)
-      : envelope(envelope)
+    SynthChannel(Type type, int midiChannel, const Envelope& envelope, const VoiceEffect& effect, const int voiceCount)
+      : type(type)
+      , envelope(envelope)
       , voiceCount(voiceCount)
       , effect(effect)
       , midiChannel(midiChannel)

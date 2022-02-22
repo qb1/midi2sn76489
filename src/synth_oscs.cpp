@@ -6,6 +6,9 @@
 #include "board.h"
 #include "synth_internals.h"
 
+// #define ENABLE_DEBUG_LOGS
+#include "logs.h"
+
 struct OscState {
 	int chip;
     int chip_channel;
@@ -60,25 +63,29 @@ void updateSynthOscs()
                 v.on_going_slope = false;
             }
 
-            selectChip(v.chip);
-            updateVolume(v.chip_channel, v.volume);
+            updateVolume(v.chip, v.chip_channel, v.volume);
         }
     }
 }
 
-void startOsc(byte osc, byte pitch, const Envelope& envelope) {
+void startOsc(byte osc, byte pitch, const Envelope& envelope, bool pitch_is_noise_control) {
     OscState& v = oscs[osc % VOICES_COUNT];
-	v.volume = 15; // Max volume
+
+    // Fist step is to disable the slope, so the interrupts won't mess with our volume
 	v.on_going_slope = false;
+
+	v.volume = 15; // Max volume
     v.envelope = envelope;
-    selectChip(v.chip);
-    updateFreq(v.chip_channel, NOTES[pitch]);
-	updateVolume(v.chip_channel, v.volume);
+    if (pitch_is_noise_control) {
+        updateNoise(v.chip, pitch);
+    } else {
+        updateFreq(v.chip, v.chip_channel, NOTES[pitch]);
+    }
+	updateVolume(v.chip, v.chip_channel, v.volume);
 }
 
 void stopOsc(byte osc) {
     OscState& v = oscs[osc % VOICES_COUNT];
-	v.on_going_slope = true;
 
 	v.objective = 0;
 	int steps_count = v.envelope.rel / REFRESH_RATE;
@@ -92,6 +99,9 @@ void stopOsc(byte osc) {
 	}
 
 	v.ticks_to_step = v.step_ticks;
+
+    // Finally, activate interrupts on this
+    v.on_going_slope = true;
 }
 
 bool isOscActive(byte osc)

@@ -1,9 +1,11 @@
+#pragma once
 #include <Arduino.h>
 
 #include "config.h"
+#include "synth_internals.h"
 
 struct VoiceProperties {
-    unsigned int priority = 0;
+    uint32_t priority = 0;
     byte channel = 0xff;
     byte pitch = 0xff;
 
@@ -13,7 +15,7 @@ struct VoiceProperties {
 // Called at setup by synth
 void setupVoiceProperties();
 
-byte findAvailableMusicVoice(int channel, int maxPerChannel);
+byte findAvailableVoice(int channel, int maxPerChannel, SynthChannel::Type type);
 void setVoiceProperties(byte voice, byte channel, byte pitch);
 void resetVoiceProperties(byte voice);
 void updateVoiceProperties();

@@ -8,6 +8,9 @@
 #define USE_TIMER_3     true
 #include "TimerInterrupt.h"
 
+//#define ENABLE_DEBUG_LOGS
+#include "logs.h"
+
 void startTimers();
 
 void setup()

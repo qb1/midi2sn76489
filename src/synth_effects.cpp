@@ -8,6 +8,9 @@
 #include "synth_effects.h"
 #include "board.h"
 
+// #define ENABLE_DEBUG_LOGS
+#include "logs.h"
+
 EffectProperties effect_properties[VOICES_COUNT];
 
 void setupEffects()
@@ -36,7 +39,7 @@ void setEffect(byte voice, const SynthChannel& channel, byte pitch, byte velocit
         break;
 
     default:
-        Serial.println("Unhandled effect");
+        ERROR_MSG("Unhandled effect ", effect_properties[voice].effect.type);
         break;
     }
 }
@@ -90,7 +93,7 @@ void updateEffectAdd(byte voice, byte pitch, byte velocity)
     }
 
     default:
-        Serial.println("Unhandled effect");
+        ERROR_MSG("Unhandled effect ", effect.effect.type);
         break;
     }
 }
@@ -152,7 +155,7 @@ void updateEffects()
             }
 
             effect.time_counter += REFRESH_RATE;
-            if (effect.time_counter > effect.effect.speed / effect.arpeggio.count) {
+            if (effect.time_counter > effect.effect.speed) {
                 effect.time_counter = 0;
 
                 effect.arpeggio.current_pitch_index += 1;

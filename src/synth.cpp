@@ -8,6 +8,9 @@
 #include "synth_effects.h"
 #include "board.h"
 
+//#define ENABLE_DEBUG_LOGS
+#include "logs.h"
+
 void setupSynth() {
     setupEffects();
     setupVoiceProperties();
@@ -23,18 +26,27 @@ void stopNoteOnChannel(byte midiChannel, byte pitch)
 {
     byte voice = findVoice(midiChannel, pitch);
     while (voice != 0xff) {
-        Serial.print("stop voice");
-        Serial.println(voice);
         stopOsc(voice);
         voice = findVoice(midiChannel, pitch, voice + 1);
     }
 }
 
+void startNoteDrum(const SynthChannel& synth_channel, byte pitch, byte velocity)
+{
+    byte voice = findAvailableVoice(synth_channel.midiChannel, synth_channel.voiceCount, SynthChannel::Drum);
+    if (voice == 0xff) {
+        Serial.println("No available drum voice");
+        return;
+    }
+    setVoiceProperties(voice, synth_channel.midiChannel, pitch);
+    startOsc(voice, pitch, synth_channel.envelope, true /* pitch is noise value */);
+}
+
 void startNotePolyphonic(const SynthChannel& synth_channel, byte pitch, byte velocity)
 {
-    byte voice = findAvailableMusicVoice(synth_channel.midiChannel, synth_channel.voiceCount);
+    byte voice = findAvailableVoice(synth_channel.midiChannel, synth_channel.voiceCount, SynthChannel::Music);
     if (voice == 0xff) {
-        Serial.println("No available voice");
+        Serial.println("No available music voice");
         return;
     }
     setVoiceProperties(voice, synth_channel.midiChannel, pitch);
@@ -45,7 +57,7 @@ void startNoteSingle(const SynthChannel& synth_channel, byte pitch, byte velocit
 {
     byte voice = findVoice(synth_channel.midiChannel);
     if (voice == 0xff) {
-        byte voice = findAvailableMusicVoice(synth_channel.midiChannel, synth_channel.voiceCount);
+        byte voice = findAvailableVoice(synth_channel.midiChannel, synth_channel.voiceCount, SynthChannel::Music);
         if (voice == 0xff) {
             Serial.println("No available voice");
             return;
@@ -70,7 +82,9 @@ void noteOn(byte channel, byte pitch, byte velocity) {
     }
     auto& synth_channel = *synthChannels[channel];
 
-    if (synth_channel.voiceCount > 1) {
+    if (synth_channel.type == SynthChannel::Drum) {
+        startNoteDrum(synth_channel, pitch, velocity);
+    } else if (synth_channel.voiceCount > 1) {
         startNotePolyphonic(synth_channel, pitch, velocity);
     } else {
         startNoteSingle(synth_channel, pitch, velocity);
@@ -103,18 +117,14 @@ void synthConfUpdated(const SynthChannel& channel)
 }
 
 void controlChange(byte channel, byte control, byte value) {
-	Serial.print("Control change: control=");
-	Serial.print(control);
-	Serial.print(", value=");
-	Serial.print(value);
-	Serial.print(", channel=");
-	Serial.println(channel);
 
+	DEBUG_MSG("Control change: control=", control, ", value=", value, ", channel=", channel);
 
     switch (control) {
     case 121:
     case 123:
         // Panic or reset
+        INFO_MSG("MIDI Reset.");
         muteAll();
         setupSynth();
         break;
@@ -126,8 +136,13 @@ void controlChange(byte channel, byte control, byte value) {
     auto& synth_channel = *synthChannels[channel];
 
     switch (control) {
-    case 1:
+    case 1: // Modulation (right one ? probably not.)
         synth_channel.envelope.rel = 5000 / 127 * value;
         synthConfUpdated(synth_channel);
+        break;
+    case 2: // Portamento time
+        synth_channel.effect.speed = 500 / 127 * value;
+        synthConfUpdated(synth_channel);
+        break;
     }
 }

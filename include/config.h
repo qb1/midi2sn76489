@@ -1,3 +1,5 @@
+#pragma once
+
 #define REFRESH_RATE 5    // refresh rate for note updates in ms
 
 #define CHIP_COUNT 2

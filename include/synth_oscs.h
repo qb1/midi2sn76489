@@ -1,3 +1,4 @@
+#pragma once
 #include <Arduino.h>
 
 /*
@@ -11,7 +12,7 @@ void setupSynthOscs();
 // Called periodically by synth
 void updateSynthOscs();
 
-void startOsc(byte osc, byte pitch, const Envelope& envelope);
+void startOsc(byte osc, byte pitch, const Envelope& envelope, bool pitch_is_noise_control = false);
 void stopOsc(byte osc);
 bool isOscActive(byte osc);
 int oscVolume(byte osc);

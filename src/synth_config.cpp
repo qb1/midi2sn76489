@@ -5,9 +5,9 @@
 
 SynthChannel* synthChannels[16] = {
     SynthChannel::makePolyphonic(0, { .rel = 500 }, VOICES_COUNT ),
-    SynthChannel::makePolyphonic(0, { .rel = 500 }, 1 ),
-    SynthChannel::makeArpeggio  (1, { .rel = 500 }, 60 ),
-    nullptr,
+    SynthChannel::makePolyphonic(1, { .rel = 500 }, 1 ),
+    SynthChannel::makeArpeggio  (2, { .rel = 500 }, 100 ),
+    SynthChannel::makeDrum      (3, 2 ),
     nullptr,
     nullptr,
     nullptr,

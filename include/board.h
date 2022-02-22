@@ -1,3 +1,4 @@
+#pragma once
 #include <Arduino.h>
 
 /*
@@ -10,15 +11,10 @@
 // Call this once at setup
 void setupBoard();
 
-// Select / deselect all chips if parameter true / false
-// Note: this is not inverted logic (as the CE pins are)
-void selectAllChips(bool select);
+// Save / restore chip selection state
 
-// Select specified chip, unselect every other.
-void selectChip(byte chip);
-
-// All functions act on selected chip, if any.
+// All functions act on selected chip.
 void muteAll();
-void updateVolume(byte chip_channel, byte value);
-void updateFreq(byte chip_channel, unsigned int value);
-void updateNoise(byte value);
+void updateVolume(byte chip, byte chip_channel, byte value);
+void updateFreq(byte chip, byte chip_channel, unsigned int value);
+void updateNoise(byte chip, byte value);

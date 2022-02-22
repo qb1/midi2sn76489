@@ -3,10 +3,14 @@
 #include "config.h"
 #include "synth_oscs.h"
 #include "synth_voices.h"
+#include "synth_internals.h"
+
+// #define ENABLE_DEBUG_LOGS
+#include "logs.h"
 
 VoiceProperties voice_properties[VOICES_COUNT];
 
-static unsigned int priorityCounter = 0;
+static uint32_t priorityCounter = 0;
 
 void setupVoiceProperties()
 {
@@ -16,7 +20,7 @@ void setupVoiceProperties()
     }
 }
 
-byte findAvailableMusicVoice(int channel, int maxPerChannel)
+byte findAvailableVoice(int channel, int maxPerChannel, SynthChannel::Type type)
 {
     int activeVoicesCount = 0;
 
@@ -25,40 +29,32 @@ byte findAvailableMusicVoice(int channel, int maxPerChannel)
     byte available_voice = 0xff;
 
     // While exploring, also keep track of track we could recycle early if necessary.
-    unsigned int lowest_prio = -1;
-    int lowest_volume = 0xff;
+    uint32_t lowest_prio = -1;
+    byte lowest_volume = 0xff;
     byte lowest_prio_voice = 0xff;
 
-    // Serial.println("Getting voice");
+    DEBUG_MSG("---> Getting voice for channel ", channel);
     for (int i=0; i < VOICES_COUNT && activeVoicesCount < maxPerChannel; ++i) {
-        if (i % 4 == 3) // Avoid noises channels for now
+        if ((type == SynthChannel::Music && i % 4 == 3) ||
+            (type == SynthChannel::Drum && i % 4 != 3))
             continue;
 
         if (voice_properties[i].isAvailable() || !isOscActive(i)) {
-            // Serial.print("Found avail voice ");
-            // Serial.println(i);
+            DEBUG_MSG("Found avail voice ", i);
             available_voice = i;
             continue;
         }
 
-        // Serial.print("channel? ");
-        // Serial.println(voice_properties[i].channel);
-
         if (voice_properties[i].channel != channel) {
-            // We do not allow early recycling of voices belonging to other channels
+            // We do not allow early recycling of voices belonging to other channels that are still in use
+            DEBUG_MSG("Skipping voice from channel ", voice_properties[i].channel);
             continue;
         }
 
         activeVoicesCount += 1;
 
-        // Serial.print("recycling? ");
-        // Serial.print(oscVolume(i));
-        // Serial.print(" <? ");
-        // Serial.print(lowest_volume);
-        // Serial.print(" || ");
-        // Serial.print(voice_properties[i].priority);
-        // Serial.print(" < ");
-        // Serial.print(lowest_prio);
+        DEBUG_MSG("Might recycle: ", oscVolume(i), " <? ", lowest_volume, " || ",
+                  voice_properties[i].priority, " < ", lowest_prio);
 
         // No voice available
         // Determine which voice to drop, in order of priority:
@@ -70,18 +66,17 @@ byte findAvailableMusicVoice(int channel, int maxPerChannel)
             lowest_volume = volume;
             lowest_prio = voice_properties[i].priority;
             lowest_prio_voice = i;
-            // Serial.print(" kept");
+            DEBUG_MSG("-> ... kept ", i);
         }
-        // Serial.println("");
     }
 
     if (activeVoicesCount < maxPerChannel && available_voice != 0xff) {
         // Reserve new available voice for our channel
-        Serial.println("New voice");
+        DEBUG_MSG("---< Using new: ", available_voice);
         return available_voice;
     } else {
         // Early recycle existing voice.
-        Serial.println("Recycling");
+        DEBUG_MSG("---< Recycling: ", lowest_prio_voice);
         return lowest_prio_voice;
     }
 }
