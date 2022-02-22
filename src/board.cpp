@@ -32,7 +32,7 @@ void selectChip(byte chip)
 	digitalWrite(A0 + chip, LOW);
 }
 
-void updateVolume(byte chip_channel, byte value) 
+void updateVolume(byte chip_channel, byte value)
 {
 	value = 0xf - (value & 0xf);
 
@@ -51,10 +51,10 @@ void updateFreq(byte chip_channel, unsigned int value)
 	// Freq function is bit 0 on R2
 	writeByte(to_write);
 	to_write = value >> 4;
-	writeByte(to_write);  
+	writeByte(to_write);
 }
 
-void updateNoise(byte value) 
+void updateNoise(byte value)
 {
 	byte chip_channel = 3;
 	value &= 0b111;
@@ -77,29 +77,29 @@ void setupBoard()
 }
 
 void muteAll()
-{  
+{
 	for (int i=0; i < 4; ++i) {
 		updateVolume(i, 0);
 	}
 }
 
 void writeByte(byte value)
-{  
+{
 	// Setup data bus
 	for (int i=0; i < 2; ++i) {
 		digitalWrite(14 + i, (value >> i) & 1); // lower bits are on 10 & 11
-	}  
+	}
 	for (int i=2; i < 8; ++i) {
 		digitalWrite(i, (value >> i) & 1); // upper on 2-7
 	}
 
 	// Strobe write enable
 	digitalWrite(pinWE, LOW);
-	delayMicroseconds(15); // Ignore READY... sad.
-	digitalWrite(pinWE, HIGH);  
+	delayMicroseconds(100); // Ignore READY... sad.
+	digitalWrite(pinWE, HIGH);
 }
 
-byte buildChipChannel(byte chip_channel) 
+byte buildChipChannel(byte chip_channel)
 {
 	return 0b10000000 | (chip_channel << 5);
 }
@@ -113,7 +113,7 @@ void setupSNChips()
 	}
 	for(int i=2; i < 8; ++i) {
 		pinMode(i, OUTPUT);
-		digitalWrite(i, LOW);      
+		digitalWrite(i, LOW);
 	}
 
 	pinMode(pinWE, OUTPUT);
@@ -128,14 +128,14 @@ void setupSNChips()
 }
 
 void setupClock()
-{    
+{
 	// Setup the clock to drive the SN76489
 
-	pinMode(clockOutputPin, OUTPUT);   
+	pinMode(clockOutputPin, OUTPUT);
 
 	// Set Timer 1 CTC mode with no prescaling.  OC1A toggles on compare match
 	//
-	// WGM12:0 = 010: CTC Mode, toggle OC 
+	// WGM12:0 = 010: CTC Mode, toggle OC
 	// WGM2 bits 1 and 0 are in TCCR1A,
 	// WGM2 bit 2 and 3 are in TCCR1B
 	// COM1A0 sets OC1A (arduino pin 9 on Arduino Micro) to toggle on compare match
@@ -146,7 +146,7 @@ void setupClock()
 	// Make sure Compare-match register A interrupt for timer1 is disabled
 	TIMSK1 = 0;
 	// This value determines the output frequency
-	OCR1A = clockStepper;    
+	OCR1A = clockStepper;
 
 	// Wait a bit for chip ready
 	delay(100);

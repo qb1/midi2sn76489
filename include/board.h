@@ -22,4 +22,3 @@ void muteAll();
 void updateVolume(byte chip_channel, byte value);
 void updateFreq(byte chip_channel, unsigned int value);
 void updateNoise(byte value);
-

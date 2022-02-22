@@ -1,107 +1,135 @@
 #include <Arduino.h>
 
-#include "synth_voices.h"
 #include "config.h"
-#include "midi_defs.h"
-#include "board.h"
+#include "synth_oscs.h"
+#include "synth_voices.h"
 
-struct VoiceState {
-	int chip;
-    int chip_channel;
-	
-	int volume;
+VoiceProperties voice_properties[VOICES_COUNT];
 
-	bool on_going_slope;
-	int objective;
-	
-	int step_offset;
-	int step_ticks;
-	int ticks_to_step;
+static unsigned int priorityCounter = 0;
 
-    Envelope envelope;
-};
-
-VoiceState voices[VOICES_COUNT];
-
-void setupSynthVoices()
+byte findAvailableMusicVoice(int channel, int maxPerChannel)
 {
-	for (int i=0; i < VOICES_COUNT; ++i) {
-		voices[i] = { 
-			.chip = i / VOICES_PER_CHIP,
-            .chip_channel = i % VOICES_PER_CHIP,
-			.volume = 0, 
-			.on_going_slope = false, 
-			.objective = 0, 
-			.step_offset = 0, 
-			.step_ticks = 0, 
-			.ticks_to_step = 0,
-            .envelope = { .rel = 1000 },
-		};
-	}
-}
+    int activeVoicesCount = 0;
 
-void updateSynthVoices()
-{
-	for (int i=0; i < VOICES_COUNT; ++i){
-        VoiceState& v = voices[i];
+    // Will store first found fully available voice.
+    // Will be selected if there are no more than maxPerChannel voices used already.
+    byte available_voice = 0xff;
 
-        if (not v.on_going_slope) {
+    // While exploring, also keep track of track we could recycle early if necessary.
+    unsigned int lowest_prio = -1;
+    int lowest_volume = 0xff;
+    byte lowest_prio_voice = 0xff;
+
+    // Serial.println("Getting voice");
+    for (int i=0; i < VOICES_COUNT && activeVoicesCount < maxPerChannel; ++i) {
+        if (i % 4 == 3) // Avoid noises channels for now
+            continue;
+
+        if (voice_properties[i].isAvailable() || !isOscActive(i)) {
+            // Serial.print("Found avail voice ");
+            // Serial.println(i);
+            available_voice = i;
             continue;
         }
-        
-        v.ticks_to_step -= 1;
-        if (v.ticks_to_step <= 0) {
-            v.ticks_to_step = v.step_ticks;
-            
-            v.volume += v.step_offset;
-            if ((v.step_offset < 0 and v.volume <= v.objective) or (v.step_offset > 0 and v.volume >= v.objective)) {
-                v.volume = v.objective;
-                v.on_going_slope = false;
-            }
 
-            selectChip(v.chip);
-            updateVolume(v.chip_channel, v.volume);
+        // Serial.print("channel? ");
+        // Serial.println(voice_properties[i].channel);
+
+        if (voice_properties[i].channel != channel) {
+            // We do not allow early recycling of voices belonging to other channels
+            continue;
+        }
+
+        activeVoicesCount += 1;
+
+        // Serial.print("recycling? ");
+        // Serial.print(oscVolume(i));
+        // Serial.print(" <? ");
+        // Serial.print(lowest_volume);
+        // Serial.print(" || ");
+        // Serial.print(voice_properties[i].priority);
+        // Serial.print(" < ");
+        // Serial.print(lowest_prio);
+
+        // No voice available
+        // Determine which voice to drop, in order of priority:
+        // - lowest volume
+        // - oldest
+        int volume = oscVolume(i);
+        if ((volume < lowest_volume) ||
+            (volume == lowest_volume && voice_properties[i].priority < lowest_prio)) {
+            lowest_volume = volume;
+            lowest_prio = voice_properties[i].priority;
+            lowest_prio_voice = i;
+            // Serial.print(" kept");
+        }
+        // Serial.println("");
+    }
+
+    if (activeVoicesCount < maxPerChannel && available_voice != 0xff) {
+        // Reserve new available voice for our channel
+        Serial.println("New voice");
+        return available_voice;
+    } else {
+        // Early recycle existing voice.
+        Serial.println("Recycling");
+        return lowest_prio_voice;
+    }
+}
+
+void setVoiceProperties(byte voice, byte channel, byte pitch)
+{
+    voice_properties[voice] = {
+        .priority = priorityCounter++,
+        .channel = channel,
+        .pitch = pitch,
+    };
+}
+
+void resetVoiceProperties(byte voice)
+{
+    voice_properties[voice] = {
+        .priority = 0,
+        .channel = 0xff,
+        .pitch = 0xff,
+    };
+}
+
+void resetVoiceProperties()
+{
+    priorityCounter = 0;
+    for (int i=0; i < VOICES_COUNT; ++i) {
+        resetVoiceProperties(i);
+    }
+}
+
+void updateVoiceProperties()
+{
+    for (int i=0; i < VOICES_COUNT; ++i) {
+        if (voice_properties[i].channel != 0xff && !isOscActive(i)){
+            resetVoiceProperties(i);
         }
     }
 }
 
-void startVoice(byte voice, byte pitch, Envelope envelope) {
-    VoiceState& v = voices[voice % VOICES_COUNT];
-	v.volume = 15; // Max volume
-	v.on_going_slope = false;
-    v.envelope = envelope;
-    selectChip(v.chip);
-    updateFreq(v.chip_channel, NOTES[pitch]);
-	updateVolume(v.chip_channel, v.volume);
-}
-
-void stopVoice(byte voice) {
-    VoiceState& v = voices[voice % VOICES_COUNT];
-	v.on_going_slope = true;
-	
-	v.objective = 0;
-	int steps_count = v.envelope.rel / REFRESH_RATE;
-	int amount = v.objective - v.volume;
-	if (abs(amount) >= steps_count) {
-		v.step_ticks = 1;
-		v.step_offset = amount / steps_count;     
-	} else {
-		v.step_offset = amount > 0 ? 1 : -1;
-		v.step_ticks = abs(steps_count / amount);
-	}
-
-	v.ticks_to_step = v.step_ticks;  
-}
-
-bool isVoiceActive(byte voice)
+byte findVoice(byte channel)
 {
-    VoiceState& v = voices[voice % VOICES_COUNT];
-	return v.volume != 0;
+    for (int i=0; i < VOICES_COUNT; ++i) {
+        if (voice_properties[i].channel == channel) {
+            return i;
+        }
+    }
+    return 0xff;
 }
 
-int voiceVolume(byte voice)
+byte findVoice(byte channel, byte pitch, byte start)
 {
-    VoiceState& v = voices[voice % VOICES_COUNT];
-	return v.volume;
+    for (int i=start; i < VOICES_COUNT; ++i) {
+        if (voice_properties[i].channel == channel &&
+            voice_properties[i].pitch == pitch) {
+            return i;
+        }
+    }
+    return 0xff;
 }
-
