@@ -8,6 +8,14 @@ VoiceProperties voice_properties[VOICES_COUNT];
 
 static unsigned int priorityCounter = 0;
 
+void setupVoiceProperties()
+{
+    priorityCounter = 0;
+    for (int i=0; i < VOICES_COUNT; ++i) {
+        resetVoiceProperties(i);
+    }
+}
+
 byte findAvailableMusicVoice(int channel, int maxPerChannel)
 {
     int activeVoicesCount = 0;
@@ -94,14 +102,6 @@ void resetVoiceProperties(byte voice)
         .channel = 0xff,
         .pitch = 0xff,
     };
-}
-
-void resetVoiceProperties()
-{
-    priorityCounter = 0;
-    for (int i=0; i < VOICES_COUNT; ++i) {
-        resetVoiceProperties(i);
-    }
 }
 
 void updateVoiceProperties()

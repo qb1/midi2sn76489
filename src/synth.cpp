@@ -5,36 +5,18 @@
 #include "synth_oscs.h"
 #include "synth_internals.h"
 #include "synth_voices.h"
+#include "synth_effects.h"
 #include "board.h"
 
-struct EffectProperties {
-    VoiceEffect effect;
-
-    int time_counter = 0;
-
-    // For arpeggio effect
-    struct {
-        byte pitches[ARPEGGIO_MAX_PITCHES] = { 0 };
-        byte current_pitch_index = 0;
-        byte count = 0;
-    } arpeggio;
-};
-
-void updateVoiceEffects();
-
-EffectProperties effect_properties[VOICES_COUNT];
-
-Envelope envelope;
-
 void setupSynth() {
+    setupEffects();
+    setupVoiceProperties();
     setupSynthOscs();
-    resetVoiceProperties();
-    envelope = { .rel = 1000, };
 }
 
 void updateSynth() {
     updateSynthOscs();
-    updateVoiceEffects();
+    updateEffects();
 }
 
 void stopNoteOnChannel(byte midiChannel, byte pitch)
@@ -48,147 +30,6 @@ void stopNoteOnChannel(byte midiChannel, byte pitch)
     }
 }
 
-void setEffect(byte voice, const VoiceEffect& effect, byte pitch, byte velocity)
-{
-    effect_properties[voice] = EffectProperties();
-
-    effect_properties[voice].effect = effect;
-
-    switch (effect.type)
-    {
-    case VoiceEffect::None:
-        startOsc(voice, pitch, envelope);
-
-    case VoiceEffect::Arpeggio:
-        startOsc(voice, pitch, envelope);
-        effect_properties[voice].arpeggio.pitches[0] = pitch;
-        effect_properties[voice].arpeggio.count = 1;
-        break;
-
-    default:
-        Serial.println("Unhandled effect");
-        break;
-    }
-}
-
-void updateEffectAdd(byte voice, byte pitch, byte velocity)
-{
-    auto& effect = effect_properties[voice];
-
-    switch (effect.effect.type)
-    {
-    case VoiceEffect::None:
-        startOsc(voice, pitch, envelope);
-
-    case VoiceEffect::Arpeggio:
-    {
-        if (effect.arpeggio.count == 0) {
-            // It was emptied out, let's start it again
-            startOsc(voice, pitch, envelope);
-            effect.arpeggio.pitches[0] = pitch;
-            effect.arpeggio.count = 1;
-        } if (effect.arpeggio.count == ARPEGGIO_MAX_PITCHES) {
-            break;
-        }else {
-            // Sorted add
-            for (int i=0; i < ARPEGGIO_MAX_PITCHES; ++i ) {
-                if (effect.arpeggio.pitches[i] == 0) {
-                    effect.arpeggio.count += 1;
-                    effect.arpeggio.pitches[i] = pitch;
-                    break;
-                }
-                if (effect.arpeggio.pitches[i] < pitch) {
-                    continue;
-                }
-                if (effect.arpeggio.pitches[i] == pitch) {
-                    // Ensure we don't add the same note twice,
-                    // never know what MIDI might throw at us
-                    break;
-                }
-                byte swap = effect.arpeggio.pitches[i];
-                effect.arpeggio.pitches[i] = pitch;
-                pitch = swap;
-            }
-            break;
-        }
-    }
-
-    default:
-        Serial.println("Unhandled effect");
-        break;
-    }
-}
-
-void updateEffectRemove(byte voice, byte pitch)
-{
-    auto& effect = effect_properties[voice];
-    switch (effect.effect.type)
-    {
-    case VoiceEffect::None:
-        if (voice_properties[voice].pitch == pitch) {
-            stopOsc(voice);
-        }
-        break;
-
-    case VoiceEffect::Arpeggio:
-    {
-        int i;
-        // Special case for last element
-        if (effect.arpeggio.pitches[ARPEGGIO_MAX_PITCHES - 1] == pitch) {
-            effect.arpeggio.pitches[ARPEGGIO_MAX_PITCHES - 1] = 0;
-            effect.arpeggio.count -= 1;
-        } else {
-            // Remove without hole
-            for (i=0; i < ARPEGGIO_MAX_PITCHES - 1; ++i ) {
-                if (effect.arpeggio.pitches[i] == pitch) {
-                    effect.arpeggio.count -= 1;
-                    break;
-                }
-            }
-            for (; i < ARPEGGIO_MAX_PITCHES - 1 && effect.arpeggio.pitches[i] != 0; ++i) {
-                effect.arpeggio.pitches[i] = effect.arpeggio.pitches[i+1];
-            }
-        }
-
-        if (effect.arpeggio.count == 0) {
-            stopOsc(voice);
-            effect.time_counter = 0;
-            effect.arpeggio.current_pitch_index = 0;
-        }
-        break;
-    }
-    }
-}
-
-void updateVoiceEffects()
-{
-    for (int voice = 0; voice < VOICES_COUNT; ++voice) {
-        auto& effect = effect_properties[voice];
-
-        switch (effect.effect.type) {
-        case VoiceEffect::None:
-            break;
-
-        case VoiceEffect::Arpeggio:
-        {
-            if (effect.arpeggio.count == 0) {
-                break;
-            }
-
-            effect.time_counter += REFRESH_RATE;
-            if (effect.time_counter > effect.effect.speed / effect.arpeggio.count) {
-                effect.time_counter = 0;
-
-                effect.arpeggio.current_pitch_index += 1;
-                effect.arpeggio.current_pitch_index %= effect.arpeggio.count;
-                startOsc(voice, effect.arpeggio.pitches[effect.arpeggio.current_pitch_index], envelope);
-            }
-            break;
-        }
-        }
-    }
-}
-
 void startNotePolyphonic(const SynthChannel& synth_channel, byte pitch, byte velocity)
 {
     byte voice = findAvailableMusicVoice(synth_channel.midiChannel, synth_channel.voiceCount);
@@ -197,7 +38,7 @@ void startNotePolyphonic(const SynthChannel& synth_channel, byte pitch, byte vel
         return;
     }
     setVoiceProperties(voice, synth_channel.midiChannel, pitch);
-    startOsc(voice, pitch, envelope);
+    startOsc(voice, pitch, synth_channel.envelope);
 }
 
 void startNoteSingle(const SynthChannel& synth_channel, byte pitch, byte velocity)
@@ -211,7 +52,7 @@ void startNoteSingle(const SynthChannel& synth_channel, byte pitch, byte velocit
         }
 
         setVoiceProperties(voice, synth_channel.midiChannel, pitch);
-        setEffect(voice, synth_channel.effect, pitch, velocity);
+        setEffect(voice, synth_channel, pitch, velocity);
     } else {
         setVoiceProperties(voice, synth_channel.midiChannel, pitch);
         updateEffectAdd(voice, pitch, velocity);
@@ -252,6 +93,15 @@ void noteOff(byte channel, byte pitch, byte velocity) {
     }
 }
 
+void synthConfUpdated(const SynthChannel& channel)
+{
+    for (int i=0; i < VOICES_COUNT; ++i) {
+        if (voice_properties[i].channel == channel.midiChannel) {
+            updateEffectProperties(i, channel);
+        }
+    }
+}
+
 void controlChange(byte channel, byte control, byte value) {
 	Serial.print("Control change: control=");
 	Serial.print(control);
@@ -261,10 +111,23 @@ void controlChange(byte channel, byte control, byte value) {
 	Serial.println(channel);
 
 
-    if (control == 123 or control == 121) {
+    switch (control) {
+    case 121:
+    case 123:
         // Panic or reset
         muteAll();
         setupSynth();
+        break;
     }
-    envelope.rel = 5000 / 127 * value;
+
+    if (synthChannels[channel] == nullptr) {
+        return;
+    }
+    auto& synth_channel = *synthChannels[channel];
+
+    switch (control) {
+    case 1:
+        synth_channel.envelope.rel = 5000 / 127 * value;
+        synthConfUpdated(synth_channel);
+    }
 }

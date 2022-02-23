@@ -10,10 +10,12 @@ struct VoiceProperties {
     const bool isAvailable() { return channel == 0xff; }
 };
 
+// Called at setup by synth
+void setupVoiceProperties();
+
 byte findAvailableMusicVoice(int channel, int maxPerChannel);
 void setVoiceProperties(byte voice, byte channel, byte pitch);
 void resetVoiceProperties(byte voice);
-void resetVoiceProperties();
 void updateVoiceProperties();
 byte findVoice(byte channel);
 byte findVoice(byte channel, byte pitch, byte start = 0);
