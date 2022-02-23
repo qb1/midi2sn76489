@@ -20,5 +20,14 @@ void moveOsc(byte osc, byte pitch, bool pitch_is_noise_control = false);
 
 // Move oscillator to release - does not stop the oscillator right away
 void stopOsc(byte osc);
+
+// Is osc in use
 bool isOscActive(byte osc);
-int oscVolume(byte osc);
+
+// Is osc being released - prime candidate for recycling
+bool isOscReleasing(byte osc);
+
+// Returns volume of osc
+// Note: if being modulated, does not return current volume but rather
+// target volume - avoids considering attacking note as off
+int  oscTargetVolume(byte osc);

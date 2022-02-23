@@ -30,8 +30,9 @@ byte findAvailableVoice(int channel, int maxPerChannel, SynthChannel::Type type)
 
     // While exploring, also keep track of track we could recycle early if necessary.
     uint32_t lowest_prio = -1;
-    byte lowest_volume = 0xff;
-    byte lowest_prio_voice = 0xff;
+    int lowest_volume = 0xff;
+    bool found_releasing_voice = false;
+    byte recycling_voice = 0xff;
 
     DEBUG_MSG("---> Getting voice for channel ", channel);
     for (int i=0; i < VOICES_COUNT && activeVoicesCount < maxPerChannel; ++i) {
@@ -53,31 +54,38 @@ byte findAvailableVoice(int channel, int maxPerChannel, SynthChannel::Type type)
 
         activeVoicesCount += 1;
 
-        DEBUG_MSG("Might recycle: ", oscVolume(i), " <? ", lowest_volume, " || ",
+        DEBUG_MSG("Might recycle: ", oscTargetVolume(i), " <? ", lowest_volume, " || ",
                   voice_properties[i].priority, " < ", lowest_prio);
 
         // No voice available
         // Determine which voice to drop, in order of priority:
+        // - being released
         // - lowest volume
         // - oldest
-        int volume = oscVolume(i);
-        if ((volume < lowest_volume) ||
+        int volume = oscTargetVolume(i);
+        if ((!found_releasing_voice && isOscReleasing(i)) ||
+            (volume < lowest_volume) ||
             (volume == lowest_volume && voice_properties[i].priority < lowest_prio)) {
+            if (found_releasing_voice && !isOscReleasing(i)) {
+                // Once we found a releasing voice, do not recycle a non-release
+                continue;
+            }
+            found_releasing_voice && isOscReleasing(i);
             lowest_volume = volume;
             lowest_prio = voice_properties[i].priority;
-            lowest_prio_voice = i;
-            DEBUG_MSG("-> ... kept ", i);
+            recycling_voice = i;
+            // DEBUG_MSG("-> ... kept ", i);
         }
     }
 
     if (activeVoicesCount < maxPerChannel && available_voice != 0xff) {
         // Reserve new available voice for our channel
-        DEBUG_MSG("---< Using new: ", available_voice);
+        DEBUG_MSG("---< ", activeVoicesCount, " actives - using new: ", available_voice);
         return available_voice;
     } else {
         // Early recycle existing voice.
-        DEBUG_MSG("---< Recycling: ", lowest_prio_voice);
-        return lowest_prio_voice;
+        DEBUG_MSG("---< ", activeVoicesCount, " actives - recycling: ", recycling_voice);
+        return recycling_voice;
     }
 }
 

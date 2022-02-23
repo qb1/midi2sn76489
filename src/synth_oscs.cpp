@@ -6,26 +6,49 @@
 #include "board.h"
 #include "synth_internals.h"
 
-// #define ENABLE_DEBUG_LOGS
+// #define ENABLE_DEBUG_LOGS // Careful: some debug logs during interrupt, might get unstable
 #include "logs.h"
 
 struct OscState {
+    enum EnvelopeState {
+        Off,
+        Attack,
+        Decay,
+        Sustain,
+        Release,
+    };
+
 	int chip;
     int chip_channel;
 
-	int volume;
+	int volume = 0;
 
-	bool on_going_slope;
-	int objective;
+    EnvelopeState state = Off;
 
-	int step_offset;
-	int step_ticks;
-	int ticks_to_step;
+    // Volumes corrected for velocity
+    byte corrected_attack;
+    byte corrected_sustain;
+
+	bool on_going_slope = false;
+	int objective = 0;
+	int amount_per_step = 0;   // Amount per step
+	int ticks_per_step = 0;    // Ticks between steps
+	int tick_counter = 0;      // Current tick counter until next step
 
     Envelope envelope;
 };
 
 OscState oscs[VOICES_COUNT];
+
+// Set voice on volume linear slope, that will be updated periodically until objective volume is reached.
+// Will ignore current volume to compute slope but use `from` parameter instead, so that slopes are always identical
+// regardless of current state
+// Note: do not set the volume after calling thing function, the interrupts will start acting of it.
+void setOnVolumeSlope(OscState& v, int slope_from, int slope_to, int actual_to, int ms);
+
+// Force osc off, regardless of state, and set state to Off.
+// Might cause annoying clicks
+void forceOscOff(OscState& v);
 
 void setupSynthOscs()
 {
@@ -33,15 +56,43 @@ void setupSynthOscs()
 		oscs[i] = {
 			.chip = i / VOICES_PER_CHIP,
             .chip_channel = i % VOICES_PER_CHIP,
-			.volume = 0,
-			.on_going_slope = false,
-			.objective = 0,
-			.step_offset = 0,
-			.step_ticks = 0,
-			.ticks_to_step = 0,
-            .envelope = { .rel = 1000 },
 		};
 	}
+}
+
+void forceOscOff(OscState& v)
+{
+    // First, ensure interrupts won't mess with our osc.
+    v.on_going_slope = false;
+    v.state = OscState::Off;
+    v.volume = 0;
+    updateVolume(v.chip, v.chip_channel, v.volume);
+}
+
+void moveOscToNextModulation(OscState& v)
+{
+    switch(v.state) {
+        case OscState::Off:
+            // Setting a oscillator ON is manually done when noteOff
+            DEBUG_MSG("Trying to move osc to next modulation from Off");
+            break;
+        case OscState::Attack:
+            v.state = OscState::Decay;
+            setOnVolumeSlope(v, 15, v.envelope.sustain, v.corrected_sustain, v.envelope.decay);
+            break;
+        case OscState::Decay:
+            v.state = OscState::Sustain;
+            // Keep volume as it is
+            break;
+        case OscState::Sustain:
+            // Setting a oscillator to Release is manually done when noteOff
+            DEBUG_MSG("Trying to move osc to next modulation from Release");
+            break;
+        case OscState::Release:
+            v.state = OscState::Off;
+            break;
+    }
+    updateVolume(v.chip, v.chip_channel, v.volume);
 }
 
 void updateSynthOscs()
@@ -53,39 +104,104 @@ void updateSynthOscs()
             continue;
         }
 
-        v.ticks_to_step -= 1;
-        if (v.ticks_to_step <= 0) {
-            v.ticks_to_step = v.step_ticks;
+        v.tick_counter -= 1;
+        if (v.tick_counter <= 0) {
+            v.tick_counter = v.ticks_per_step;
 
-            v.volume += v.step_offset;
-            if ((v.step_offset < 0 and v.volume <= v.objective) or (v.step_offset > 0 and v.volume >= v.objective)) {
+            v.volume += v.amount_per_step;
+            if ((v.amount_per_step < 0 and v.volume <= v.objective) or (v.amount_per_step > 0 and v.volume >= v.objective) or
+                (v.amount_per_step == 0)) {
                 v.volume = v.objective;
                 v.on_going_slope = false;
+                updateVolume(v.chip, v.chip_channel, v.volume);
+                moveOscToNextModulation(v);
+            } else {
+                updateVolume(v.chip, v.chip_channel, v.volume);
             }
-
-            updateVolume(v.chip, v.chip_channel, v.volume);
         }
     }
+}
+
+void setOnVolumeSlope(OscState& v, int slope_from, int slope_to, int actual_to, int ms)
+{
+    // Ensure slope is disabled first, interrupts might still be firing
+    v.on_going_slope = false;
+    DEBUG_MSG("Setting slope y=x+(", slope_to - slope_from, ") until ", actual_to, " in ", ms);
+
+    if ((slope_from < slope_to && v.volume >= actual_to) || (slope_to <  slope_from and v.volume <= actual_to) ||
+        (ms < REFRESH_RATE)) {
+        DEBUG_MSG("Where we're going we don't need slopes");
+
+        // No slope possible or necessary
+        v.volume = actual_to;
+        updateVolume(v.chip, v.chip_channel, v.volume);
+
+        // Still set the slope to keep the oscillator in the modulation interrupts as expected by caller:
+        // might get moved to next mod state on the next tick
+        v.tick_counter = 1;
+        v.ticks_per_step = 1;
+        v.amount_per_step = 0;
+        v.objective = v.volume;
+        v.on_going_slope = true;
+        return;
+    }
+
+    int steps_count = ms / REFRESH_RATE;
+    int amount = slope_to - slope_from;
+
+    if (abs(amount) >= steps_count) {
+		v.ticks_per_step = 1;
+		v.amount_per_step = amount / steps_count;
+	} else {
+		v.amount_per_step = amount > 0 ? 1 : -1;
+		v.ticks_per_step = abs(steps_count / amount);
+	}
+
+	v.tick_counter = v.ticks_per_step;
+    v.objective = actual_to;
+
+    DEBUG_MSG("Slope characs: ", v.ticks_per_step, " ticks/step ", v.amount_per_step, " volume/step ");
+
+    // Finally, activate refresh on this
+    v.on_going_slope = true;
+}
+
+byte getVolumeFromVelocity(byte volume, byte velocity)
+{
+    return (unsigned int)(volume) * velocity / 127;
 }
 
 void startOsc(byte osc, byte pitch, byte velocity, const Envelope& envelope, bool pitch_is_noise_control) {
     OscState& v = oscs[osc % VOICES_COUNT];
 
+    DEBUG_MSG("Start osc ", osc);
+
     // Fist step is to disable the slope, so the interrupts won't mess with our volume
 	v.on_going_slope = false;
+    // Do not set the volume to 0 - this creates nasty cracks if the track is recycled.
+    // On the other hand, it means a recycled oscillator won't get a full attack, but that's
+    // a better compromise.
 
-	v.volume = 15u * velocity / 127; // Max volume
     v.envelope = envelope;
+    v.corrected_attack = getVolumeFromVelocity(15, velocity);
+    v.corrected_sustain = getVolumeFromVelocity(v.envelope.sustain, velocity);
+
     if (pitch_is_noise_control) {
-        updateNoise(v.chip, pitch);
+        updateNoise(v.chip, drumDefinitionFromPitch(pitch).noise);
     } else {
         updateFreq(v.chip, v.chip_channel, NOTES[pitch]);
     }
-	updateVolume(v.chip, v.chip_channel, v.volume);
+
+    // Start the oscillator (or set the slope)
+    v.state = OscState::Attack;
+    setOnVolumeSlope(v, 0, 15, v.corrected_attack, envelope.attack);
 }
 
 void moveOsc(byte osc, byte pitch, bool pitch_is_noise_control) {
     OscState& v = oscs[osc % VOICES_COUNT];
+
+    // Fist step is to disable the slope, so the interrupts won't mess with our volume
+    v.on_going_slope = false;
 
     if (pitch_is_noise_control) {
         updateNoise(v.chip, pitch);
@@ -97,34 +213,24 @@ void moveOsc(byte osc, byte pitch, bool pitch_is_noise_control) {
 void stopOsc(byte osc) {
     OscState& v = oscs[osc % VOICES_COUNT];
 
-	v.objective = 0;
-	int steps_count = v.envelope.rel / REFRESH_RATE;
-
-    // Assume slope is going from max volume
-    // Otherwise changing velocity changes slope
-	int amount = v.objective - 15;
-	if (abs(amount) >= steps_count) {
-		v.step_ticks = 1;
-		v.step_offset = amount / steps_count;
-	} else {
-		v.step_offset = amount > 0 ? 1 : -1;
-		v.step_ticks = abs(steps_count / amount);
-	}
-
-	v.ticks_to_step = v.step_ticks;
-
-    // Finally, activate interrupts on this
-    v.on_going_slope = true;
+    v.state = OscState::Release;
+	setOnVolumeSlope(v, v.envelope.sustain, 0, 0, v.envelope.rel);
 }
 
 bool isOscActive(byte osc)
 {
     OscState& v = oscs[osc % VOICES_COUNT];
-	return v.volume != 0;
+	return v.state != OscState::Off;
 }
 
-int oscVolume(byte osc)
+bool isOscReleasing(byte osc)
 {
     OscState& v = oscs[osc % VOICES_COUNT];
-	return v.volume;
+	return v.state == OscState::Release;
+}
+
+int oscTargetVolume(byte osc)
+{
+    OscState& v = oscs[osc % VOICES_COUNT];
+	return v.on_going_slope ? v.objective : v.volume;
 }

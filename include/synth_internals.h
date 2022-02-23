@@ -6,6 +6,9 @@
  */
 
 struct Envelope {
+    unsigned int attack = 0;
+    unsigned int decay = 0;
+    unsigned int sustain = 15;
 	unsigned int rel = 0;
 };
 
@@ -55,4 +58,12 @@ private:
     }
 };
 
+struct DrumDefinition {
+    Envelope envelope;
+    byte noise;
+};
+
 extern SynthChannel* synthChannels[16];
+extern DrumDefinition drumDefinitions[12];
+
+DrumDefinition& drumDefinitionFromPitch(byte pitch);

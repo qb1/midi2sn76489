@@ -8,7 +8,7 @@
 #include "synth_effects.h"
 #include "board.h"
 
-//#define ENABLE_DEBUG_LOGS
+// #define ENABLE_DEBUG_LOGS
 #include "logs.h"
 
 void setupSynth() {
@@ -39,7 +39,7 @@ void startNoteDrum(const SynthChannel& synth_channel, byte pitch, byte velocity)
         return;
     }
     setVoiceProperties(voice, synth_channel.midiChannel, pitch);
-    startOsc(voice, pitch, velocity, synth_channel.envelope, true /* pitch is noise value */);
+    startOsc(voice, pitch, velocity, drumDefinitionFromPitch(pitch).envelope, true /* is noise */);
 }
 
 void startNotePolyphonic(const SynthChannel& synth_channel, byte pitch, byte velocity)
