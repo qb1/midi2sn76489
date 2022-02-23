@@ -28,7 +28,7 @@ struct SynthChannel {
     Type type;
     Envelope envelope;
     int voiceCount;
-    VoiceEffect effect; // No effect allowed if voiceCount > 1
+    VoiceEffect effect; // Must be None if voiceCount > 1
 
     const int midiChannel;
 

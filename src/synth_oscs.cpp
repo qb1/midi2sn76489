@@ -68,13 +68,13 @@ void updateSynthOscs()
     }
 }
 
-void startOsc(byte osc, byte pitch, const Envelope& envelope, bool pitch_is_noise_control) {
+void startOsc(byte osc, byte pitch, byte velocity, const Envelope& envelope, bool pitch_is_noise_control) {
     OscState& v = oscs[osc % VOICES_COUNT];
 
     // Fist step is to disable the slope, so the interrupts won't mess with our volume
 	v.on_going_slope = false;
 
-	v.volume = 15; // Max volume
+	v.volume = 15u * velocity / 127; // Max volume
     v.envelope = envelope;
     if (pitch_is_noise_control) {
         updateNoise(v.chip, pitch);
@@ -84,12 +84,25 @@ void startOsc(byte osc, byte pitch, const Envelope& envelope, bool pitch_is_nois
 	updateVolume(v.chip, v.chip_channel, v.volume);
 }
 
+void moveOsc(byte osc, byte pitch, bool pitch_is_noise_control) {
+    OscState& v = oscs[osc % VOICES_COUNT];
+
+    if (pitch_is_noise_control) {
+        updateNoise(v.chip, pitch);
+    } else {
+        updateFreq(v.chip, v.chip_channel, NOTES[pitch]);
+    }
+}
+
 void stopOsc(byte osc) {
     OscState& v = oscs[osc % VOICES_COUNT];
 
 	v.objective = 0;
 	int steps_count = v.envelope.rel / REFRESH_RATE;
-	int amount = v.objective - v.volume;
+
+    // Assume slope is going from max volume
+    // Otherwise changing velocity changes slope
+	int amount = v.objective - 15;
 	if (abs(amount) >= steps_count) {
 		v.step_ticks = 1;
 		v.step_offset = amount / steps_count;

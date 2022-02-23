@@ -30,10 +30,10 @@ void setEffect(byte voice, const SynthChannel& channel, byte pitch, byte velocit
     switch (effect_properties[voice].effect.type)
     {
     case VoiceEffect::None:
-        startOsc(voice, pitch, channel.envelope);
+        startOsc(voice, pitch, velocity, channel.envelope);
 
     case VoiceEffect::Arpeggio:
-        startOsc(voice, pitch, channel.envelope);
+        startOsc(voice, pitch, velocity, channel.envelope);
         effect_properties[voice].arpeggio.pitches[0] = pitch;
         effect_properties[voice].arpeggio.count = 1;
         break;
@@ -57,13 +57,13 @@ void updateEffectAdd(byte voice, byte pitch, byte velocity)
     switch (effect.effect.type)
     {
     case VoiceEffect::None:
-        startOsc(voice, pitch, effect.envelope);
+        startOsc(voice, pitch, velocity, effect.envelope);
 
     case VoiceEffect::Arpeggio:
     {
         if (effect.arpeggio.count == 0) {
             // It was emptied out, let's start it again
-            startOsc(voice, pitch, effect.envelope);
+            startOsc(voice, pitch, velocity, effect.envelope);
             effect.arpeggio.pitches[0] = pitch;
             effect.arpeggio.count = 1;
         } if (effect.arpeggio.count == ARPEGGIO_MAX_PITCHES) {
@@ -160,7 +160,7 @@ void updateEffects()
 
                 effect.arpeggio.current_pitch_index += 1;
                 effect.arpeggio.current_pitch_index %= effect.arpeggio.count;
-                startOsc(voice, effect.arpeggio.pitches[effect.arpeggio.current_pitch_index], effect.envelope);
+                moveOsc(voice, effect.arpeggio.pitches[effect.arpeggio.current_pitch_index]);
             }
             break;
         }

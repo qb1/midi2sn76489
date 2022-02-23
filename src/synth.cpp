@@ -39,7 +39,7 @@ void startNoteDrum(const SynthChannel& synth_channel, byte pitch, byte velocity)
         return;
     }
     setVoiceProperties(voice, synth_channel.midiChannel, pitch);
-    startOsc(voice, pitch, synth_channel.envelope, true /* pitch is noise value */);
+    startOsc(voice, pitch, velocity, synth_channel.envelope, true /* pitch is noise value */);
 }
 
 void startNotePolyphonic(const SynthChannel& synth_channel, byte pitch, byte velocity)
@@ -50,7 +50,7 @@ void startNotePolyphonic(const SynthChannel& synth_channel, byte pitch, byte vel
         return;
     }
     setVoiceProperties(voice, synth_channel.midiChannel, pitch);
-    startOsc(voice, pitch, synth_channel.envelope);
+    startOsc(voice, pitch, velocity, synth_channel.envelope);
 }
 
 void startNoteSingle(const SynthChannel& synth_channel, byte pitch, byte velocity)
