@@ -22,6 +22,7 @@ struct OscState {
     int chip_channel;
 
 	int volume = 0;
+    byte pitch = 0;
 
     EnvelopeState state = Off;
 
@@ -185,8 +186,10 @@ void startOsc(byte osc, byte pitch, byte velocity, const Envelope& envelope, boo
     v.envelope = envelope;
     v.corrected_attack = getVolumeFromVelocity(15, velocity);
     v.corrected_sustain = getVolumeFromVelocity(v.envelope.sustain, velocity);
+    v.pitch = pitch;
 
     if (pitch_is_noise_control) {
+        updateFreq(v.chip, 2, drumDefinitionFromPitch(pitch).osc3freq);
         updateNoise(v.chip, drumDefinitionFromPitch(pitch).noise);
     } else {
         updateFreq(v.chip, v.chip_channel, NOTES[pitch]);
@@ -197,24 +200,44 @@ void startOsc(byte osc, byte pitch, byte velocity, const Envelope& envelope, boo
     setOnVolumeSlope(v, 0, 15, v.corrected_attack, envelope.attack);
 }
 
-void moveOsc(byte osc, byte pitch, bool pitch_is_noise_control) {
+void moveOsc(byte osc, byte pitch, bool pitch_is_noise_control)
+{
     OscState& v = oscs[osc % VOICES_COUNT];
 
-    // Fist step is to disable the slope, so the interrupts won't mess with our volume
-    v.on_going_slope = false;
+    v.pitch = pitch;
 
     if (pitch_is_noise_control) {
-        updateNoise(v.chip, pitch);
+        updateFreq(v.chip, 2, drumDefinitionFromPitch(pitch).osc3freq);
+        updateNoise(v.chip, drumDefinitionFromPitch(pitch).noise);
     } else {
         updateFreq(v.chip, v.chip_channel, NOTES[pitch]);
     }
+}
+
+void bendOsc(byte osc, int bend)
+{
+    OscState& v = oscs[osc % VOICES_COUNT];
+
+    if ((v.pitch == 0 && bend < 0) || (v.pitch == LAST_NOTE && bend > 0)) {
+        return;
+    }
+    int32_t current = NOTES[v.pitch];
+    int32_t next    = NOTES[v.pitch + (bend > 0 ? 2 : -2)];
+    int32_t diff = (next - current) * abs(bend) / 100;
+    int32_t bent = current + diff;
+
+    DEBUG_MSG("Bend osc ", bend, " from ", current, " to ", bent);
+
+    updateFreq(v.chip, v.chip_channel, bent);
 }
 
 void stopOsc(byte osc) {
     OscState& v = oscs[osc % VOICES_COUNT];
 
     v.state = OscState::Release;
-	setOnVolumeSlope(v, v.envelope.sustain, 0, 0, v.envelope.rel);
+    // If no sustain, release slope will apply similarly to decay slope, from the top
+    unsigned int slope_start_volume =  v.envelope.sustain > 0 ? v.envelope.sustain : 15;
+	setOnVolumeSlope(v, slope_start_volume, 0, 0, v.envelope.rel);
 }
 
 bool isOscActive(byte osc)

@@ -14,3 +14,4 @@ void updateSynth();
 void noteOn(byte channel, byte pitch, byte velocity);
 void noteOff(byte channel, byte pitch, byte velocity);
 void controlChange(byte channel, byte control, byte value);
+void bendChange(byte channel, byte value);

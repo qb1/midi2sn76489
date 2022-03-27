@@ -20,7 +20,7 @@ void setupVoiceProperties()
     }
 }
 
-byte findAvailableVoice(int channel, int maxPerChannel, SynthChannel::Type type)
+byte findAvailableVoice(int channel, int onChip, int maxPerChannel, SynthChannel::Type type)
 {
     int activeVoicesCount = 0;
 
@@ -36,7 +36,10 @@ byte findAvailableVoice(int channel, int maxPerChannel, SynthChannel::Type type)
 
     DEBUG_MSG("---> Getting voice for channel ", channel);
     for (int i=0; i < VOICES_COUNT && activeVoicesCount < maxPerChannel; ++i) {
-        if ((type == SynthChannel::Music && i % 4 == 3) ||
+        if ((onChip & (1 << (i / 4))) == 0) {
+            continue;
+        }
+        if ((type == SynthChannel::Music && (i % 4 == 3 || i % 4 == 2)) ||
             (type == SynthChannel::Drum && i % 4 != 3))
             continue;
 

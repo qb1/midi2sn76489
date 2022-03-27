@@ -3,7 +3,7 @@
 #include "board.h"
 #include "config.h"
 
-//#define ENABLE_DEBUG_LOGS
+// #define ENABLE_DEBUG_LOGS
 #include "logs.h"
 
 static const int clockOutputPin = 9;   // OC1A output pin for ATmega32u4 (Arduino Micro)

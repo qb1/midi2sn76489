@@ -33,7 +33,7 @@ void stopNoteOnChannel(byte midiChannel, byte pitch)
 
 void startNoteDrum(const SynthChannel& synth_channel, byte pitch, byte velocity)
 {
-    byte voice = findAvailableVoice(synth_channel.midiChannel, synth_channel.voiceCount, SynthChannel::Drum);
+    byte voice = findAvailableVoice(synth_channel.midiChannel, synth_channel.onChip, synth_channel.voiceCount, SynthChannel::Drum);
     if (voice == 0xff) {
         Serial.println("No available drum voice");
         return;
@@ -44,7 +44,7 @@ void startNoteDrum(const SynthChannel& synth_channel, byte pitch, byte velocity)
 
 void startNotePolyphonic(const SynthChannel& synth_channel, byte pitch, byte velocity)
 {
-    byte voice = findAvailableVoice(synth_channel.midiChannel, synth_channel.voiceCount, SynthChannel::Music);
+    byte voice = findAvailableVoice(synth_channel.midiChannel, synth_channel.onChip, synth_channel.voiceCount, SynthChannel::Music);
     if (voice == 0xff) {
         Serial.println("No available music voice");
         return;
@@ -57,7 +57,7 @@ void startNoteSingle(const SynthChannel& synth_channel, byte pitch, byte velocit
 {
     byte voice = findVoice(synth_channel.midiChannel);
     if (voice == 0xff) {
-        byte voice = findAvailableVoice(synth_channel.midiChannel, synth_channel.voiceCount, SynthChannel::Music);
+        byte voice = findAvailableVoice(synth_channel.midiChannel, synth_channel.onChip, synth_channel.voiceCount, SynthChannel::Music);
         if (voice == 0xff) {
             Serial.println("No available voice");
             return;
@@ -116,8 +116,11 @@ void synthConfUpdated(const SynthChannel& channel)
     }
 }
 
-void controlChange(byte channel, byte control, byte value) {
 
+
+void controlChange(byte channel, byte control, byte bvalue)
+{
+    unsigned long value = bvalue;
 	DEBUG_MSG("Control change: control=", control, ", value=", value, ", channel=", channel);
 
     switch (control) {
@@ -141,8 +144,61 @@ void controlChange(byte channel, byte control, byte value) {
         synthConfUpdated(synth_channel);
         break;
     case 2: // Portamento time
-        synth_channel.effect.speed = 500 / 127 * value;
+        synth_channel.effect.speed = 500ul * value / 127;
         synthConfUpdated(synth_channel);
         break;
+    /*case 3:
+        value = 100ul * value / 127;
+        INFO_MSG("Setting drum attack to ", value);
+        for (int i=0; i < 12; ++i) {
+            drumDefinitions[i].envelope.attack = value;
+        }
+        break;
+    case 4:
+        value = 800ul * value / 127;
+        INFO_MSG("Setting drum decay to ", value);
+        for (int i=0; i < 12; ++i) {
+            drumDefinitions[i].envelope.decay = value;
+        }
+        break;
+    case 5:
+        value = 15ul * value / 127;
+        INFO_MSG("Setting drum sustain to ", value);
+        for (int i=0; i < 12; ++i) {
+            drumDefinitions[i].envelope.sustain = value;
+        }
+        break;
+    case 6:
+        value = 800ul * value / 127;
+        INFO_MSG("Setting drum rel to ", value);
+        for (int i=0; i < 12; ++i) {
+            drumDefinitions[i].envelope.rel = value;
+        }
+        break;
+    case 7:
+        INFO_MSG("Setting drum white noise to ", (bool)value);
+        value = value ? 0b111 : 0b011;
+        for (int i=0; i < 12; ++i) {
+            drumDefinitions[i].noise = value;
+        }
+        break;*/
+    }
+}
+
+void bendChange(byte channel, byte bvalue)
+{
+    int value = bvalue;
+    value = (value - 0x40) * 100 / 0x40;
+	DEBUG_MSG("Bend change: value=", value, ", channel=", channel);
+
+    if (synthChannels[channel] == nullptr) {
+        return;
+    }
+    auto& synth_channel = *synthChannels[channel];
+
+    for (int i=0; i < VOICES_COUNT; ++i) {
+        if (voice_properties[i].channel == synth_channel.midiChannel) {
+            bendOsc(i, value);
+        }
     }
 }

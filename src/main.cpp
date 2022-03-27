@@ -51,6 +51,33 @@ void loop() {
 			);
 			break;
 
+		case 0xE:
+			bendChange(
+				rx.byte1 & 0xF,  //channel
+                // we ignore byte 2, on my controller it seems to = msb of byte 3
+				rx.byte3         //value
+			);
+			break;
+
+        case 0xF:
+            // MIDI clock signal
+            if (rx.byte1 == 0xF8) {
+                static unsigned long last = 0;
+                static unsigned long bpm = 0;
+                unsigned long current = micros();
+                if (last != 0) {
+                    unsigned long elapsed = current - last;
+                    unsigned long new_bpm = 2500000 / elapsed;
+                    if (new_bpm != bpm) {
+                        bpm = new_bpm;
+                        Serial.print("New BPM: ");
+			            Serial.println(bpm);
+                        Serial.println(elapsed);
+                    }
+                }
+                last = current;
+            }
+
 		default:
 			Serial.print("Unhandled MIDI message: ");
 			Serial.print(rx.header, HEX);

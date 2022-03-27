@@ -18,6 +18,10 @@ void startOsc(byte osc, byte pitch, byte velocity, const Envelope& envelope, boo
 // Change oscillator's pitch, do not start or restart it. Will not alter current envelope.
 void moveOsc(byte osc, byte pitch, bool pitch_is_noise_control = false);
 
+// Bend current oscillator's pitch, expressed in signed percent between 0 and 2 semi-tones
+// Do not use on noise channels
+void bendOsc(byte osc, int bend);
+
 // Move oscillator to release - does not stop the oscillator right away
 void stopOsc(byte osc);
 

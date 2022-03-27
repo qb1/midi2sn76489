@@ -15,7 +15,7 @@ struct VoiceProperties {
 // Called at setup by synth
 void setupVoiceProperties();
 
-byte findAvailableVoice(int channel, int maxPerChannel, SynthChannel::Type type);
+byte findAvailableVoice(int channel, int onChip, int maxPerChannel, SynthChannel::Type type);
 void setVoiceProperties(byte voice, byte channel, byte pitch);
 void resetVoiceProperties(byte voice);
 void updateVoiceProperties();
