@@ -9,7 +9,7 @@ struct VoiceProperties {
     byte channel = 0xff;
     byte pitch = 0xff;
 
-    const bool isAvailable() { return channel == 0xff; }
+    bool isAvailable() const { return channel == 0xff; }
 };
 
 // Called at setup by synth

@@ -76,11 +76,10 @@ void noteOn(byte channel, byte pitch, byte velocity) {
 	Serial.print(channel);
 	Serial.print(", pitch=");
 	Serial.println(pitch);*/
-
-    if (synthChannels[channel] == nullptr) {
+    if (synthChannels[channel].isNone()) {
         return;
     }
-    auto& synth_channel = *synthChannels[channel];
+    auto& synth_channel = synthChannels[channel];
 
     if (synth_channel.type == SynthChannel::Drum) {
         startNoteDrum(synth_channel, pitch, velocity);
@@ -92,10 +91,10 @@ void noteOn(byte channel, byte pitch, byte velocity) {
 }
 
 void noteOff(byte channel, byte pitch, byte velocity) {
-    if (synthChannels[channel] == nullptr) {
+    if (synthChannels[channel].isNone()) {
         return;
     }
-    auto& synth_channel = *synthChannels[channel];
+    auto& synth_channel = synthChannels[channel];
 
     if (synth_channel.voiceCount > 1) {
         stopNoteOnChannel(synth_channel.midiChannel, pitch);
@@ -133,10 +132,10 @@ void controlChange(byte channel, byte control, byte bvalue)
         break;
     }
 
-    if (synthChannels[channel] == nullptr) {
+    if (synthChannels[channel].isNone()) {
         return;
     }
-    auto& synth_channel = *synthChannels[channel];
+    auto& synth_channel = synthChannels[channel];
 
     switch (control) {
     case 1: // Modulation (right one ? probably not.)
@@ -191,10 +190,10 @@ void bendChange(byte channel, byte bvalue)
     value = (value - 0x40) * 100 / 0x40;
 	DEBUG_MSG("Bend change: value=", value, ", channel=", channel);
 
-    if (synthChannels[channel] == nullptr) {
+    if (synthChannels[channel].isNone()) {
         return;
     }
-    auto& synth_channel = *synthChannels[channel];
+    auto& synth_channel = synthChannels[channel];
 
     for (int i=0; i < VOICES_COUNT; ++i) {
         if (voice_properties[i].channel == synth_channel.midiChannel) {

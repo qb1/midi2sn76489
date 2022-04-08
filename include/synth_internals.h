@@ -6,10 +6,10 @@
  */
 
 struct Envelope {
-    unsigned int attack = 0;
-    unsigned int decay = 0;
-    unsigned int sustain = 15;
-	unsigned int rel = 0;
+    unsigned short int attack = 0;
+    unsigned short int decay = 0;
+    unsigned short int sustain = 15;
+    unsigned short int rel = 0;
 };
 
 struct VoiceEffect {
@@ -18,7 +18,7 @@ struct VoiceEffect {
         Arpeggio,
     };
 
-    Type type = None;
+    uint8_t type = None;
     int speed = 0;
 };
 
@@ -28,27 +28,33 @@ struct SynthChannel {
         Drum
     };
 
-    Type type;
+    const uint8_t type;
     Envelope envelope;
-    int voiceCount;
+    const uint8_t voiceCount;
     VoiceEffect effect; // Must be None if voiceCount > 1
 
-    const int midiChannel;
+    const byte midiChannel;
 
     // Restrict which chips this voice can be on
-    const int onChip;
+    const byte onChip;
 
-    static SynthChannel* makeDrum(int midiChannel, int onChip, const int voiceCount) {
-        return new SynthChannel(Drum, midiChannel, onChip, Envelope(), VoiceEffect(), voiceCount);
+    static SynthChannel makeDrum(int midiChannel, int onChip, const int voiceCount) {
+        return SynthChannel(Drum, midiChannel, onChip, Envelope(), VoiceEffect(), voiceCount);
     }
 
-    static SynthChannel* makePolyphonic(int midiChannel, int onChip, const Envelope& envelope, const int voiceCount) {
-        return new SynthChannel(Music, midiChannel, onChip, envelope, VoiceEffect(), voiceCount);
+    static SynthChannel makePolyphonic(int midiChannel, int onChip, const Envelope& envelope, const int voiceCount) {
+        return SynthChannel(Music, midiChannel, onChip, envelope, VoiceEffect(), voiceCount);
     }
 
-    static SynthChannel* makeArpeggio(int midiChannel, int onChip, const Envelope& envelope, const int speed) {
-        return new SynthChannel(Music, midiChannel, onChip, envelope, { .type = VoiceEffect::Arpeggio, .speed = speed }, 1);
+    static SynthChannel makeArpeggio(int midiChannel, int onChip, const Envelope& envelope, const int speed) {
+        return SynthChannel(Music, midiChannel, onChip, envelope, { .type = VoiceEffect::Arpeggio, .speed = speed }, 1);
     }
+
+    static SynthChannel makeNone() {
+        return SynthChannel(Music, 0, 0, Envelope(), VoiceEffect(), 0);
+    }
+
+    bool isNone() const { return voiceCount == 0; } // No optional :(
 
 private:
     SynthChannel(Type type, int midiChannel, int onChip, const Envelope& envelope, const VoiceEffect& effect, const int voiceCount)
@@ -68,7 +74,7 @@ struct DrumDefinition {
     byte osc3freq;
 };
 
-extern SynthChannel* synthChannels[16];
-extern DrumDefinition drumDefinitions[12];
+extern SynthChannel synthChannels[16];
+extern const DrumDefinition drumDefinitions[12];
 
-DrumDefinition& drumDefinitionFromPitch(byte pitch);
+const DrumDefinition& drumDefinitionFromPitch(byte pitch);

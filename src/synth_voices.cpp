@@ -37,6 +37,7 @@ byte findAvailableVoice(int channel, int onChip, int maxPerChannel, SynthChannel
     DEBUG_MSG("---> Getting voice for channel ", channel);
     for (int i=0; i < VOICES_COUNT && activeVoicesCount < maxPerChannel; ++i) {
         if ((onChip & (1 << (i / 4))) == 0) {
+            DEBUG_MSG("Skipping voice ", i, " not on chip");
             continue;
         }
         if ((type == SynthChannel::Music && (i % 4 == 3 || i % 4 == 2)) ||
