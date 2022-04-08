@@ -8,13 +8,6 @@ struct EffectProperties {
     Envelope envelope;
 
     int time_counter = 0;
-
-    // For arpeggio effect
-    struct {
-        byte pitches[ARPEGGIO_MAX_PITCHES] = { 0 };
-        byte current_pitch_index = 0;
-        byte count = 0;
-    } arpeggio;
 };
 
 // Called at setup by synth

@@ -15,7 +15,6 @@ struct Envelope {
 struct VoiceEffect {
     enum Type {
         None,
-        Arpeggio,
     };
 
     uint8_t type = None;
@@ -45,11 +44,7 @@ struct SynthChannel {
     static SynthChannel makePolyphonic(int midiChannel, int onChip, const Envelope& envelope, const int voiceCount) {
         return SynthChannel(Music, midiChannel, onChip, envelope, VoiceEffect(), voiceCount);
     }
-
-    static SynthChannel makeArpeggio(int midiChannel, int onChip, const Envelope& envelope, const int speed) {
-        return SynthChannel(Music, midiChannel, onChip, envelope, { .type = VoiceEffect::Arpeggio, .speed = speed }, 1);
-    }
-
+    
     static SynthChannel makeNone() {
         return SynthChannel(Music, 0, 0, Envelope(), VoiceEffect(), 0);
     }

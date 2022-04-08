@@ -31,7 +31,7 @@ SynthChannel synthChannels[16] = {
     SynthChannel::makePolyphonic(10, VOICE_3, { .attack = 1, .decay = 0, .sustain = 15, .rel = 50 }, 1 ),
     SynthChannel::makePolyphonic(11, VOICE_3, { .attack = 10, .decay = 0, .sustain = 15, .rel = 500 }, 1 ),
 
-    SynthChannel::makeArpeggio  (12, VOICE_R, { .attack = 10, .decay = 200, .sustain = 10, .rel = 500 }, 100 ),
+    SynthChannel::makeNone(),
     SynthChannel::makeDrum      (13, VOICE_L, 2 ),
     SynthChannel::makeDrum      (14, VOICE_R, 2 ),
 
