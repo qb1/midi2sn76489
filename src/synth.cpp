@@ -138,10 +138,30 @@ void controlChange(byte channel, byte control, byte bvalue)
     auto& synth_channel = synthChannels[channel];
 
     switch (control) {
-    case 1: // Modulation (right one ? probably not.)
-        synth_channel.envelope.rel = 5000 / 127 * value;
+
+    case 0: // Bank Select?
+        // bendChange(channel, value); // Bitwig wtf 
+        break;
+
+    case 1: // Modulation = vibrato
+        break;
+    case 72: // Release time
+        synth_channel.envelope.rel = 25 * value; // From 0 to 3175 ms
         synthConfUpdated(synth_channel);
         break;
+    case 73: // Attack time
+        synth_channel.envelope.attack = 5 * value; // From 0 to 635 ms
+        synthConfUpdated(synth_channel);
+        break;
+    case 75: // Decay time
+        synth_channel.envelope.decay = 5 * value; // From 0 to 635 ms
+        synthConfUpdated(synth_channel);
+        break;
+    case 64: // Sustain pedal (not meant for that use but hey)
+        synth_channel.envelope.sustain = 15 * value / 127;
+        synthConfUpdated(synth_channel);
+        break;
+
     case 2: // Portamento time
         synth_channel.effect.speed = 500ul * value / 127;
         synthConfUpdated(synth_channel);
