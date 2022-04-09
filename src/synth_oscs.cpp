@@ -192,7 +192,7 @@ void startOsc(byte osc, byte pitch, byte velocity, const Envelope& envelope, boo
         updateFreq(v.chip, 2, drumDefinitionFromPitch(pitch).osc3freq);
         updateNoise(v.chip, drumDefinitionFromPitch(pitch).noise);
     } else {
-        updateFreq(v.chip, v.chip_channel, NOTES[pitch]);
+        updateFreq(v.chip, v.chip_channel, pitch_value(pitch));
     }
 
     // Start the oscillator (or set the slope)
@@ -210,7 +210,7 @@ void moveOsc(byte osc, byte pitch, bool pitch_is_noise_control)
         updateFreq(v.chip, 2, drumDefinitionFromPitch(pitch).osc3freq);
         updateNoise(v.chip, drumDefinitionFromPitch(pitch).noise);
     } else {
-        updateFreq(v.chip, v.chip_channel, NOTES[pitch]);
+        updateFreq(v.chip, v.chip_channel, pitch_value(pitch));
     }
 }
 
@@ -221,8 +221,8 @@ void bendOsc(byte osc, int bend)
     if ((v.pitch == 0 && bend < 0) || (v.pitch == LAST_NOTE && bend > 0)) {
         return;
     }
-    int32_t current = NOTES[v.pitch];
-    int32_t next    = NOTES[v.pitch + (bend > 0 ? 2 : -2)];
+    int32_t current = pitch_value(v.pitch);
+    int32_t next    = pitch_value(v.pitch + (bend > 0 ? 2 : -2));
     int32_t diff = (next - current) * abs(bend) / 100;
     int32_t bent = current + diff;
 

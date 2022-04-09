@@ -7,7 +7,7 @@
 #include "logs.h"
 
 static const int clockOutputPin = 9;   // OC1A output pin for ATmega32u4 (Arduino Micro)
-static const int clockStepper = 3;     // Clock divider from 16 MHz: 1=8MHz, 2=4...
+static const int clockStepper = 7;     // Clock divider from 16 MHz: 1=8MHz, 3 = 4MHz, 7=2MHz...
 static const int pinWE = 8;
 
 const byte REG_TONE1 = 0b00000000;
@@ -116,7 +116,7 @@ void writeByte(byte value)
 
 	// Strobe write enable
 	digitalWrite(pinWE, LOW);
-	delayMicroseconds(10); // Ignore READY... sad.
+	delayMicroseconds(20); // Ignore READY... sad.
 	digitalWrite(pinWE, HIGH);
 }
 
