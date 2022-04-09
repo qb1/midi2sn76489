@@ -11,18 +11,39 @@
 //#define ENABLE_DEBUG_LOGS
 #include "logs.h"
 
-void startTimers();
+unsigned long prev_time = 0;
 
 void setup()
 {
 	setupBoard();
     setupSynth();
 
-	startTimers();
+	prev_time = millis();
 }
 
 void loop() {
+	auto current_time = millis();
+	if (current_time - prev_time >= REFRESH_RATE) {
+		updateSynth();
+		prev_time += REFRESH_RATE;
+		if (prev_time + REFRESH_RATE * 10 < current_time) {
+			ERROR_MSG("Running behind, skipping frames");
+			prev_time = current_time;
+		}
+	}
+
 	midiEventPacket_t rx = MidiUSB.read();
+	/*if (rx.header != 0) {
+		Serial.print("Received MIDI message: ");
+		Serial.print(rx.header, HEX);
+		Serial.print("-");
+		Serial.print(rx.byte1, HEX);
+		Serial.print("-");
+		Serial.print(rx.byte2, HEX);
+		Serial.print("-");
+		Serial.println(rx.byte3, HEX);
+	}*/
+
 	switch (rx.header) {
 		case 0:
 			break; //No pending events
@@ -89,7 +110,7 @@ void loop() {
 			Serial.println(rx.byte3, HEX);
 	}
 }
-
+/*
 void TimerHandler()
 {
 	updateSynth();
@@ -106,4 +127,4 @@ void startTimers()
 	else {
 		Serial.println(F("Can't set ITimer3. Select another freq. or timer"));
     }
-}
+}*/

@@ -228,7 +228,7 @@ void moveOsc(byte osc, byte pitch, bool pitch_is_noise_control)
     }
 }
 
-void bendOsc(byte osc, int bend)
+void bendOsc(byte osc, int bend, int semitones)
 {
     OscState& v = oscs[osc % VOICES_COUNT];
 
@@ -236,7 +236,7 @@ void bendOsc(byte osc, int bend)
         return;
     }
     int32_t current = pitch_value(v.pitch);
-    int32_t next    = pitch_value(v.pitch + (bend > 0 ? 2 : -2));
+    int32_t next    = pitch_value(v.pitch + (bend > 0 ? semitones : -semitones));
     int32_t diff = (next - current) * abs(bend) / 100;
     int32_t bent = current + diff;
 

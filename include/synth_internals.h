@@ -21,8 +21,9 @@ struct VoiceEffect {
     byte legato = true;
 
     struct Portamento {
-        uint16_t speed = 200;
-        uint16_t position = 0;
+        uint16_t speed = 0;
+        uint16_t position = 0xffff;
+        byte from_pitch = 0;
     };
     Portamento portamento;
 

@@ -57,7 +57,7 @@ void startNotePolyphonic(const SynthChannel& synth_channel, byte pitch, byte vel
     bendOsc(voice, synth_channel.effect.current_bend);
 }
 
-void startNoteSingle(const SynthChannel& synth_channel, byte pitch, byte velocity)
+void startNoteSingle(SynthChannel& synth_channel, byte pitch, byte velocity)
 {
     byte voice = findVoice(synth_channel.midiChannel);
     if (voice == 0xff) {
@@ -68,9 +68,16 @@ void startNoteSingle(const SynthChannel& synth_channel, byte pitch, byte velocit
         }
     }
 
+    auto previous_pitch = voice_properties[voice].pitch;
     setVoiceProperties(voice, synth_channel.midiChannel, pitch);
     if (synth_channel.effect.legato && isOscLegatoReady(voice)) {
-        moveOsc(voice, pitch);
+        if (synth_channel.effect.portamento.speed == 0) {
+            moveOsc(voice, pitch);
+        } else {            
+            moveOsc(voice, previous_pitch); // A glissando might be on-going, abort it.
+            synth_channel.effect.portamento.from_pitch = previous_pitch;
+            synth_channel.effect.portamento.position = 0; // Kickstart glissando effect
+        }
     } else {
         startOsc(voice, pitch, velocity, synth_channel.envelope);
     }

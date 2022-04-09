@@ -53,7 +53,21 @@ void updateEffects()
 
         auto& synth_channel = synthChannels[channel];
 
-        if (synth_channel.effect.vibrato.amount != 0) {
+        if (synth_channel.effect.portamento.position != 0xffff) {
+            // Portamento 
+            synth_channel.effect.portamento.position += REFRESH_RATE;
+            if (synth_channel.effect.portamento.position > synth_channel.effect.portamento.speed) {
+                synth_channel.effect.portamento.position = -1;
+                moveOsc(voice, voice_properties[voice].pitch);
+            } else {
+                int16_t from_pitch = synth_channel.effect.portamento.from_pitch;
+                int16_t to_pitch = voice_properties[voice].pitch;
+                int16_t total_bend = to_pitch - from_pitch;
+                int16_t current_bend = 100 * synth_channel.effect.portamento.position / synth_channel.effect.portamento.speed;
+                bendOsc(voice, current_bend, total_bend);
+            }
+        } else if (synth_channel.effect.vibrato.amount != 0) {
+            // Vibrato
             bendOsc(voice, amounts[channel]);
         }
     }
