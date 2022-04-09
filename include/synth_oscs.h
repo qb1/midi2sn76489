@@ -15,7 +15,7 @@ void updateSynthOscs();
 // Start (or restart) an oscillator with an envelope
 void startOsc(byte osc, byte pitch, byte velocity, const Envelope& envelope, bool pitch_is_noise_control = false);
 
-// Change oscillator's pitch, do not start or restart it. Will not alter current envelope.
+// Change oscillator's pitch, do not start or restart it. Will keep current envelope, unless if Release
 void moveOsc(byte osc, byte pitch, bool pitch_is_noise_control = false);
 
 // Bend current oscillator's pitch, expressed in signed percent between 0 and 2 semi-tones
@@ -30,6 +30,9 @@ bool isOscActive(byte osc);
 
 // Is osc being released - prime candidate for recycling
 bool isOscReleasing(byte osc);
+
+// Is osc in use
+bool isOscLegatoReady(byte osc);
 
 // Returns volume of osc
 // Note: if being modulated, does not return current volume but rather

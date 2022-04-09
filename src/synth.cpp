@@ -8,7 +8,7 @@
 #include "synth_effects.h"
 #include "board.h"
 
-// #define ENABLE_DEBUG_LOGS
+#define ENABLE_DEBUG_LOGS
 #include "logs.h"
 
 void setupSynth() {
@@ -51,23 +51,25 @@ void startNotePolyphonic(const SynthChannel& synth_channel, byte pitch, byte vel
     }
     setVoiceProperties(voice, synth_channel.midiChannel, pitch);
     startOsc(voice, pitch, velocity, synth_channel.envelope);
+    //setEffect(voice, synth_channel, pitch, velocity);
 }
 
 void startNoteSingle(const SynthChannel& synth_channel, byte pitch, byte velocity)
 {
     byte voice = findVoice(synth_channel.midiChannel);
     if (voice == 0xff) {
-        byte voice = findAvailableVoice(synth_channel.midiChannel, synth_channel.onChip, synth_channel.voiceCount, SynthChannel::Music);
+        voice = findAvailableVoice(synth_channel.midiChannel, synth_channel.onChip, synth_channel.voiceCount, SynthChannel::Music);
         if (voice == 0xff) {
             Serial.println("No available voice");
             return;
         }
+    }
 
-        setVoiceProperties(voice, synth_channel.midiChannel, pitch);
-        setEffect(voice, synth_channel, pitch, velocity);
+    setVoiceProperties(voice, synth_channel.midiChannel, pitch);
+    if (synth_channel.effect.legato && isOscLegatoReady(voice)) {
+        moveOsc(voice, pitch);
     } else {
-        setVoiceProperties(voice, synth_channel.midiChannel, pitch);
-        updateEffectAdd(voice, pitch, velocity);
+        startOsc(voice, pitch, velocity, synth_channel.envelope);
     }
 }
 
@@ -84,7 +86,7 @@ void noteOn(byte channel, byte pitch, byte velocity) {
     if (synth_channel.type == SynthChannel::Drum) {
         startNoteDrum(synth_channel, pitch, velocity);
     } else if (synth_channel.voiceCount > 1) {
-        startNotePolyphonic(synth_channel, pitch, velocity);
+        //startNotePolyphonic(synth_channel, pitch, velocity);
     } else {
         startNoteSingle(synth_channel, pitch, velocity);
     }
@@ -101,7 +103,8 @@ void noteOff(byte channel, byte pitch, byte velocity) {
     } else {
         byte voice = findVoice(synth_channel.midiChannel);
         if (voice != 0xff) {
-            updateEffectRemove(voice, pitch);
+            stopNoteOnChannel(synth_channel.midiChannel, pitch);
+            //updateEffectRemove(voice, pitch);
         }
     }
 }
@@ -144,7 +147,10 @@ void controlChange(byte channel, byte control, byte bvalue)
         break;
 
     case 1: // Modulation = vibrato
+        synth_channel.effect.vibrato.amount = value;
+        synthConfUpdated(synth_channel);
         break;
+
     case 72: // Release time
         synth_channel.envelope.rel = 25 * value; // From 0 to 3175 ms
         synthConfUpdated(synth_channel);
@@ -162,10 +168,16 @@ void controlChange(byte channel, byte control, byte bvalue)
         synthConfUpdated(synth_channel);
         break;
 
+    case 68:
+        synth_channel.effect.legato = (value >= 64);
+        synthConfUpdated(synth_channel);
+        break;        
+
     case 2: // Portamento time
-        synth_channel.effect.speed = 500ul * value / 127;
+        synth_channel.effect.portamento_speed = 15 * value;
         synthConfUpdated(synth_channel);
         break;
+
     /*case 3:
         value = 100ul * value / 127;
         INFO_MSG("Setting drum attack to ", value);

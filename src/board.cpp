@@ -116,7 +116,7 @@ void writeByte(byte value)
 
 	// Strobe write enable
 	digitalWrite(pinWE, LOW);
-	delayMicroseconds(20); // Ignore READY... sad.
+	delayMicroseconds(100); // Ignore READY... sad.
 	digitalWrite(pinWE, HIGH);
 }
 

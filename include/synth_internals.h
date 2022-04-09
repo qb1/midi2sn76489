@@ -18,7 +18,15 @@ struct VoiceEffect {
     };
 
     uint8_t type = None;
-    int speed = 0;
+    byte legato = true;
+    int portamento_speed = 0;
+
+    struct Vibrato {
+        int8_t amount = 127; // +/- 127 = +/-2 semitones
+        byte speed = 100;
+        byte position = 0;
+    };
+    Vibrato vibrato;
 };
 
 struct SynthChannel {

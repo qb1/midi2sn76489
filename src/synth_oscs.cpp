@@ -36,6 +36,8 @@ struct OscState {
 	int ticks_per_step = 0;    // Ticks between steps
 	int tick_counter = 0;      // Current tick counter until next step
 
+    byte ticks_since_release = 0;
+
     Envelope envelope;
 };
 
@@ -103,6 +105,12 @@ void updateSynthOscs()
 
         if (not v.on_going_slope) {
             continue;
+        }
+
+        if (v.state == OscState::Release) {
+            if (v.ticks_since_release < 255) {
+                v.ticks_since_release += 1;
+            }
         }
 
         v.tick_counter -= 1;
@@ -209,8 +217,14 @@ void moveOsc(byte osc, byte pitch, bool pitch_is_noise_control)
     if (pitch_is_noise_control) {
         updateFreq(v.chip, 2, drumDefinitionFromPitch(pitch).osc3freq);
         updateNoise(v.chip, drumDefinitionFromPitch(pitch).noise);
-    } else {
+    } else {        
         updateFreq(v.chip, v.chip_channel, pitch_value(pitch));
+        if (v.state == OscState::Release) {
+            // Was set to release, take it back to sustain
+            v.on_going_slope = false;
+            v.state = OscState::Sustain;
+            updateVolume(v.chip, v.chip_channel, v.corrected_sustain);            
+        }
     }
 }
 
@@ -237,6 +251,7 @@ void stopOsc(byte osc) {
     v.state = OscState::Release;
     // If no sustain, release slope will apply similarly to decay slope, from the top
     unsigned int slope_start_volume =  v.envelope.sustain > 0 ? v.envelope.sustain : 15;
+    v.ticks_since_release = 0;
 	setOnVolumeSlope(v, slope_start_volume, 0, 0, v.envelope.rel);
 }
 
@@ -250,6 +265,16 @@ bool isOscReleasing(byte osc)
 {
     OscState& v = oscs[osc % VOICES_COUNT];
 	return v.state == OscState::Release;
+}
+
+bool isOscLegatoReady(byte osc)
+{
+    OscState& v = oscs[osc % VOICES_COUNT];
+
+    if (v.state != OscState::Release) {
+        return v.state != OscState::Off;
+    }
+	return v.ticks_since_release < 2;
 }
 
 int oscTargetVolume(byte osc)
