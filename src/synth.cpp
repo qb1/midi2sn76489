@@ -12,7 +12,6 @@
 #include "logs.h"
 
 void setupSynth() {
-    setupEffects();
     setupVoiceProperties();
     setupSynthOscs();
 }
@@ -49,9 +48,13 @@ void startNotePolyphonic(const SynthChannel& synth_channel, byte pitch, byte vel
         Serial.println("No available music voice");
         return;
     }
+
     setVoiceProperties(voice, synth_channel.midiChannel, pitch);
+    // No legato possible on polyphonic mode
     startOsc(voice, pitch, velocity, synth_channel.envelope);
-    //setEffect(voice, synth_channel, pitch, velocity);
+    // We should probably start the osc pre-bended,
+    // but I can't hear any artifact in doing after the fact and the code is simpler so...
+    bendOsc(voice, synth_channel.effect.current_bend);
 }
 
 void startNoteSingle(const SynthChannel& synth_channel, byte pitch, byte velocity)
@@ -60,7 +63,7 @@ void startNoteSingle(const SynthChannel& synth_channel, byte pitch, byte velocit
     if (voice == 0xff) {
         voice = findAvailableVoice(synth_channel.midiChannel, synth_channel.onChip, synth_channel.voiceCount, SynthChannel::Music);
         if (voice == 0xff) {
-            Serial.println("No available voice");
+            Serial.println("No available music voice");
             return;
         }
     }
@@ -71,6 +74,7 @@ void startNoteSingle(const SynthChannel& synth_channel, byte pitch, byte velocit
     } else {
         startOsc(voice, pitch, velocity, synth_channel.envelope);
     }
+    bendOsc(voice, synth_channel.effect.current_bend);
 }
 
 void noteOn(byte channel, byte pitch, byte velocity) {
@@ -86,7 +90,7 @@ void noteOn(byte channel, byte pitch, byte velocity) {
     if (synth_channel.type == SynthChannel::Drum) {
         startNoteDrum(synth_channel, pitch, velocity);
     } else if (synth_channel.voiceCount > 1) {
-        //startNotePolyphonic(synth_channel, pitch, velocity);
+        startNotePolyphonic(synth_channel, pitch, velocity);
     } else {
         startNoteSingle(synth_channel, pitch, velocity);
     }
@@ -108,17 +112,6 @@ void noteOff(byte channel, byte pitch, byte velocity) {
         }
     }
 }
-
-void synthConfUpdated(const SynthChannel& channel)
-{
-    for (int i=0; i < VOICES_COUNT; ++i) {
-        if (voice_properties[i].channel == channel.midiChannel) {
-            updateEffectProperties(i, channel);
-        }
-    }
-}
-
-
 
 void controlChange(byte channel, byte control, byte bvalue)
 {
@@ -143,39 +136,35 @@ void controlChange(byte channel, byte control, byte bvalue)
     switch (control) {
 
     case 0: // Bank Select?
-        // bendChange(channel, value); // Bitwig wtf 
+        bendChange(channel, value); // Bitwig wtf
         break;
 
     case 1: // Modulation = vibrato
         synth_channel.effect.vibrato.amount = value;
-        synthConfUpdated(synth_channel);
+        break;
+    case 76: // Vibrato rate
+        synth_channel.effect.vibrato.speed = 5 * 127 - (5 * value); // From 635 to 0 ms
         break;
 
     case 72: // Release time
         synth_channel.envelope.rel = 25 * value; // From 0 to 3175 ms
-        synthConfUpdated(synth_channel);
         break;
     case 73: // Attack time
         synth_channel.envelope.attack = 5 * value; // From 0 to 635 ms
-        synthConfUpdated(synth_channel);
         break;
     case 75: // Decay time
         synth_channel.envelope.decay = 5 * value; // From 0 to 635 ms
-        synthConfUpdated(synth_channel);
         break;
     case 64: // Sustain pedal (not meant for that use but hey)
         synth_channel.envelope.sustain = 15 * value / 127;
-        synthConfUpdated(synth_channel);
         break;
 
     case 68:
         synth_channel.effect.legato = (value >= 64);
-        synthConfUpdated(synth_channel);
         break;        
 
     case 2: // Portamento time
-        synth_channel.effect.portamento_speed = 15 * value;
-        synthConfUpdated(synth_channel);
+        synth_channel.effect.portamento.speed = 15 * value;
         break;
 
     /*case 3:
@@ -218,14 +207,16 @@ void controlChange(byte channel, byte control, byte bvalue)
 
 void bendChange(byte channel, byte bvalue)
 {
-    int value = bvalue;
-    value = (value - 0x40) * 100 / 0x40;
-	DEBUG_MSG("Bend change: value=", value, ", channel=", channel);
-
     if (synthChannels[channel].isNone()) {
         return;
     }
     auto& synth_channel = synthChannels[channel];
+
+    int value = bvalue;
+    value = (value - 0x40) * 100 / 0x40;
+    DEBUG_MSG("Bend change: value=", value, ", channel=", channel);
+
+    synth_channel.effect.current_bend = value;
 
     for (int i=0; i < VOICES_COUNT; ++i) {
         if (voice_properties[i].channel == synth_channel.midiChannel) {

@@ -20,6 +20,7 @@ void moveOsc(byte osc, byte pitch, bool pitch_is_noise_control = false);
 
 // Bend current oscillator's pitch, expressed in signed percent between 0 and 2 semi-tones
 // Do not use on noise channels
+// Absolute bend value can be > 100 for bigger bends
 void bendOsc(byte osc, int bend);
 
 // Move oscillator to release - does not stop the oscillator right away

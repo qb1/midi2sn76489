@@ -19,12 +19,19 @@ struct VoiceEffect {
 
     uint8_t type = None;
     byte legato = true;
-    int portamento_speed = 0;
+
+    struct Portamento {
+        uint16_t speed = 200;
+        uint16_t position = 0;
+    };
+    Portamento portamento;
+
+    int8_t current_bend = 0;
 
     struct Vibrato {
-        int8_t amount = 127; // +/- 127 = +/-2 semitones
-        byte speed = 100;
-        byte position = 0;
+        int8_t amount = 0;    // +/- 100 = +/-2 semitones
+        uint16_t speed = 200;
+        uint16_t position = 0;
     };
     Vibrato vibrato;
 };

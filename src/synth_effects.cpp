@@ -11,74 +11,50 @@
 // #define ENABLE_DEBUG_LOGS
 #include "logs.h"
 
-EffectProperties effect_properties[VOICES_COUNT];
-
-void setupEffects()
-{
-    for (int i=0; i < VOICES_COUNT; ++i) {
-        effect_properties[i] = EffectProperties();
-    }
-}
-
-void setEffect(byte voice, const SynthChannel& channel, byte pitch, byte velocity)
-{
-    effect_properties[voice] = EffectProperties();
-
-    effect_properties[voice].effect = channel.effect;
-    effect_properties[voice].envelope = channel.envelope;
-
-    // Restart effects temporality
-    effect_properties[voice].effect.vibrato.position = 0;
-}
-
-void updateEffectProperties(byte voice, const SynthChannel& channel)
-{
-    auto tmp = effect_properties[voice].effect;
-    effect_properties[voice].effect = channel.effect;
-    effect_properties[voice].envelope = channel.envelope;
-
-    // Update should not affect temporality of effects
-    effect_properties[voice].effect.vibrato.position = tmp.vibrato.position;
-}
-
-void updateEffectAdd(byte voice, byte pitch, byte velocity)
-{
-    auto& effect = effect_properties[voice];
-
-    // Restart effects temporality
-    effect.effect.vibrato.position = 0;
-}
-
-void updateEffectRemove(byte voice, byte pitch)
-{
-}
-
 void updateEffects()
 {
-    /*for (int voice = 0; voice < VOICES_COUNT; ++voice) {
-        if (!isOscActive(voice)) {
-            return;
+    static int16_t amounts[16] = {0};
+    for (int channel = 0; channel < 16; ++channel) {
+        auto& synth_channel = synthChannels[channel];
+        if (synth_channel.isNone()) {
+            continue;
         }
 
-        auto& effect = effect_properties[voice];
+        auto& vibrato = synth_channel.effect.vibrato;
+        if (vibrato.amount == 0) {
+            continue;
+        }
 
-        if (effect.effect.vibrato.amount != 0) {
-            effect.effect.vibrato.position += REFRESH_RATE;
-            if (effect.effect.vibrato.position % 5 == 0) {
-                effect.effect.vibrato.position %= effect.effect.vibrato.speed * 2;
+        vibrato.position += REFRESH_RATE;
+        vibrato.position %= vibrato.speed;
                 
-                auto position = effect.effect.vibrato.position % effect.effect.vibrato.speed;
-                auto half_pos = effect.effect.vibrato.position % (effect.effect.vibrato.speed / 2);
-                int8_t amount = half_pos * 100 / (effect.effect.vibrato.speed / 2);
-                if (position > effect.effect.vibrato.speed / 2) {
-                    amount = 100 - amount;
-                }
-                if (effect.effect.vibrato.position >= effect.effect.vibrato.speed) {
-                    amount = -amount;
-                }
-
-                bendOsc(voice, amount);
-            }
+        auto position = vibrato.position % (vibrato.speed / 2);
+        auto half_pos = vibrato.position % (vibrato.speed / 4);
+        int16_t amount = half_pos * 100 / (vibrato.speed / 4);
+        if (position >= vibrato.speed / 4) {
+            amount = 100 - amount;
         }
-    }*/
+        if (vibrato.position >= vibrato.speed / 2) {
+            amount = -amount;
+        }
+
+        amounts[channel] = amount * vibrato.amount / 100;
+    }
+
+    for (int voice = 0; voice < VOICES_COUNT; ++voice) {
+        if (!isOscActive(voice)) {
+            continue;
+        }
+
+        auto channel = voice_properties[voice].channel;
+        if (channel > 16) {
+            ERROR_MSG("Active voice with non-sensical channel ", channel)
+        }
+
+        auto& synth_channel = synthChannels[channel];
+
+        if (synth_channel.effect.vibrato.amount != 0) {
+            bendOsc(voice, amounts[channel]);
+        }
+    }
 }
