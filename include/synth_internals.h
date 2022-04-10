@@ -29,12 +29,17 @@ struct VoiceEffect {
 
     int8_t current_bend = 0;
 
-    struct Vibrato {
-        int8_t amount = 0;    // +/- 100 = +/-2 semitones
+    struct Modulation {
+        int8_t amount = 0;    
         uint16_t speed = 200;
         uint16_t position = 0;
+        enum Type {
+            Vibrato, // amount: +/- 100 = +/- 2 semitones
+            Tremolo, // amount: +/- 100 = +/- full volume 
+        };
+        byte type = Vibrato;
     };
-    Vibrato vibrato;
+    Modulation modulation;
 };
 
 struct SynthChannel {
@@ -68,7 +73,7 @@ struct SynthChannel {
 
     bool isNone() const { return voiceCount == 0; } // No optional :(
 
-    byte correct_volume(byte value) const { return (uint16_t)value * volume / 127; }
+    byte correct_volume(int value) const { return min(max(value * volume / 127, 0), 15); }
 
 private:
     SynthChannel(Type type, int midiChannel, int onChip, const Envelope& envelope, const VoiceEffect& effect, const int voiceCount)

@@ -143,18 +143,23 @@ void controlChange(byte channel, byte control, byte bvalue)
     switch (control) {
 
     case 0: // Bank Select?
-        bendChange(channel, value); // Bitwig wtf
+        bendChange(channel, value); // Wtf bitwig transforms my keyboard bend into CC#0 when passthrough.
         break;
 
     case 7: // Channel volume
         volumeChange(channel, value);
         break;
 
-    case 1: // Modulation = vibrato
-        synth_channel.effect.vibrato.amount = value;
+    case 1: // Modulation = vibrato or tremolo
+        synth_channel.effect.modulation.amount = value;
         break;
-    case 76: // Vibrato rate
-        synth_channel.effect.vibrato.speed = 5 * 127 - (5 * value); // From 635 to 0 ms
+    case 12: // Effect control one: for us, select vibrato (off) or tremolo (on)
+             // This is an arbitrary choice: I can't find a more appropriate CC value.
+        synth_channel.effect.modulation.type = (value < 64 ? VoiceEffect::Modulation::Vibrato 
+                                                           : VoiceEffect::Modulation::Tremolo);
+        break;
+    case 76: // Vibrato rate (or tremolo rate if effect is selected)
+        synth_channel.effect.modulation.speed = 5 * 127 - (5 * value); // From 635 to 0 ms
         break;
 
     case 72: // Release time
@@ -166,11 +171,11 @@ void controlChange(byte channel, byte control, byte bvalue)
     case 75: // Decay time
         synth_channel.envelope.decay = 5 * value; // From 0 to 635 ms
         break;
-    case 64: // Sustain pedal (not meant for that use but hey)
+    case 64: // Sustain pedal will drive sustain volume (not meant for that use but hey)
         synth_channel.envelope.sustain = 15 * value / 127;
         break;
 
-    case 68:
+    case 68: // Legato footswitch: OFF if < 64
         synth_channel.effect.legato = (value >= 64);
         break;        
 
@@ -178,35 +183,8 @@ void controlChange(byte channel, byte control, byte bvalue)
         synth_channel.effect.portamento.speed = 15 * value;
         break;
 
-    /*case 3:
-        value = 100ul * value / 127;
-        INFO_MSG("Setting drum attack to ", value);
-        for (int i=0; i < 12; ++i) {
-            drumDefinitions[i].envelope.attack = value;
-        }
-        break;
-    case 4:
-        value = 800ul * value / 127;
-        INFO_MSG("Setting drum decay to ", value);
-        for (int i=0; i < 12; ++i) {
-            drumDefinitions[i].envelope.decay = value;
-        }
-        break;
-    case 5:
-        value = 15ul * value / 127;
-        INFO_MSG("Setting drum sustain to ", value);
-        for (int i=0; i < 12; ++i) {
-            drumDefinitions[i].envelope.sustain = value;
-        }
-        break;
-    case 6:
-        value = 800ul * value / 127;
-        INFO_MSG("Setting drum rel to ", value);
-        for (int i=0; i < 12; ++i) {
-            drumDefinitions[i].envelope.rel = value;
-        }
-        break;
-    case 7:
+    // Used when experimenting with drums
+    /*case 7:
         INFO_MSG("Setting drum white noise to ", (bool)value);
         value = value ? 0b111 : 0b011;
         for (int i=0; i < 12; ++i) {

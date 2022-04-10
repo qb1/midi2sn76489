@@ -255,6 +255,20 @@ void signalOscVolumeChange(byte osc)
     updateVolume(v.chip, v.chip_channel, v.channel->correct_volume(v.volume));
 }
 
+void tremoloOsc(byte osc, int value)
+{
+    OscState& v = oscs[osc % VOICES_COUNT];
+
+    if (v.state == OscState::Off) {
+        // I only applied tremolo to sustain first, but that made it weird or useless as simple timbre
+        // effect for eg. filler notes, so let's apply it everywhere.
+        return;
+    }
+    int volume = v.volume + 15 * value / 100;
+
+    updateVolume(v.chip, v.chip_channel, v.channel->correct_volume(volume));
+}
+
 void stopOsc(byte osc) {
     OscState& v = oscs[osc % VOICES_COUNT];
 

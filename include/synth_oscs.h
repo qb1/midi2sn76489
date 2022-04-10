@@ -26,6 +26,9 @@ void bendOsc(byte osc, int bend, int semitones = 2);
 // Signal an external channel volume change on this osc
 void signalOscVolumeChange(byte osc);
 
+// Signal an external channel volume change on this osc
+void tremoloOsc(byte osc, int amount);
+
 // Move oscillator to release - does not stop the oscillator right away
 void stopOsc(byte osc);
 

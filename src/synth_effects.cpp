@@ -20,25 +20,25 @@ void updateEffects()
             continue;
         }
 
-        auto& vibrato = synth_channel.effect.vibrato;
-        if (vibrato.amount == 0) {
+        auto& modulation = synth_channel.effect.modulation;
+        if (modulation.amount == 0) {
             continue;
         }
 
-        vibrato.position += REFRESH_RATE;
-        vibrato.position %= vibrato.speed;
+        modulation.position += REFRESH_RATE;
+        modulation.position %= modulation.speed;
                 
-        auto position = vibrato.position % (vibrato.speed / 2);
-        auto half_pos = vibrato.position % (vibrato.speed / 4);
-        int16_t amount = half_pos * 100 / (vibrato.speed / 4);
-        if (position >= vibrato.speed / 4) {
+        auto position = modulation.position % (modulation.speed / 2);
+        auto half_pos = modulation.position % (modulation.speed / 4);
+        int16_t amount = half_pos * 100 / (modulation.speed / 4);
+        if (position >= modulation.speed / 4) {
             amount = 100 - amount;
         }
-        if (vibrato.position >= vibrato.speed / 2) {
+        if (modulation.position >= modulation.speed / 2) {
             amount = -amount;
         }
 
-        amounts[channel] = amount * vibrato.amount / 100;
+        amounts[channel] = amount * modulation.amount / 100;
     }
 
     for (int voice = 0; voice < VOICES_COUNT; ++voice) {
@@ -66,9 +66,16 @@ void updateEffects()
                 int16_t current_bend = 100 * synth_channel.effect.portamento.position / synth_channel.effect.portamento.speed;
                 bendOsc(voice, current_bend, total_bend);
             }
-        } else if (synth_channel.effect.vibrato.amount != 0) {
-            // Vibrato
+        } else if (synth_channel.effect.modulation.amount != 0 &&
+                   synth_channel.effect.modulation.type == VoiceEffect::Modulation::Vibrato) {
+            // Vibrato and portamento are exclusive
             bendOsc(voice, amounts[channel]);
+        }
+
+        if (synth_channel.effect.modulation.amount != 0 &&
+                   synth_channel.effect.modulation.type == VoiceEffect::Modulation::Tremolo) {
+            // Tremolo
+            tremoloOsc(voice, amounts[channel]);
         }
     }
 }
