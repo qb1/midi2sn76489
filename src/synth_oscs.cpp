@@ -39,6 +39,7 @@ struct OscState {
     byte ticks_since_release = 0;
 
     Envelope envelope;
+    const SynthChannel* channel;
 };
 
 OscState oscs[VOICES_COUNT];
@@ -95,7 +96,7 @@ void moveOscToNextModulation(OscState& v)
             v.state = OscState::Off;
             break;
     }
-    updateVolume(v.chip, v.chip_channel, v.volume);
+    updateVolume(v.chip, v.chip_channel, v.channel->correct_volume(v.volume));
 }
 
 void updateSynthOscs()
@@ -122,10 +123,11 @@ void updateSynthOscs()
                 (v.amount_per_step == 0)) {
                 v.volume = v.objective;
                 v.on_going_slope = false;
-                updateVolume(v.chip, v.chip_channel, v.volume);
+
+                updateVolume(v.chip, v.chip_channel, v.channel->correct_volume(v.volume));
                 moveOscToNextModulation(v);
             } else {
-                updateVolume(v.chip, v.chip_channel, v.volume);
+                updateVolume(v.chip, v.chip_channel, v.channel->correct_volume(v.volume));
             }
         }
     }
@@ -143,7 +145,7 @@ void setOnVolumeSlope(OscState& v, int slope_from, int slope_to, int actual_to, 
 
         // No slope possible or necessary
         v.volume = actual_to;
-        updateVolume(v.chip, v.chip_channel, v.volume);
+        updateVolume(v.chip, v.chip_channel, v.channel->correct_volume(v.volume));
 
         // Still set the slope to keep the oscillator in the modulation interrupts as expected by caller:
         // might get moved to next mod state on the next tick
@@ -180,7 +182,7 @@ byte getVolumeFromVelocity(byte volume, byte velocity)
     return (unsigned int)(volume) * velocity / 127;
 }
 
-void startOsc(byte osc, byte pitch, byte velocity, const Envelope& envelope, bool pitch_is_noise_control) {
+void startOsc(byte osc, byte pitch, byte velocity, const SynthChannel& channel, const Envelope& envelope, bool pitch_is_noise_control) {
     OscState& v = oscs[osc % VOICES_COUNT];
 
     DEBUG_MSG("Start osc ", osc);
@@ -191,6 +193,7 @@ void startOsc(byte osc, byte pitch, byte velocity, const Envelope& envelope, boo
     // On the other hand, it means a recycled oscillator won't get a full attack, but that's
     // a better compromise.
 
+    v.channel = &channel;
     v.envelope = envelope;
     v.corrected_attack = getVolumeFromVelocity(15, velocity);
     v.corrected_sustain = getVolumeFromVelocity(v.envelope.sustain, velocity);
@@ -223,7 +226,8 @@ void moveOsc(byte osc, byte pitch, bool pitch_is_noise_control)
             // Was set to release, take it back to sustain
             v.on_going_slope = false;
             v.state = OscState::Sustain;
-            updateVolume(v.chip, v.chip_channel, v.corrected_sustain);            
+            v.volume = v.corrected_sustain;
+            updateVolume(v.chip, v.chip_channel, v.channel->correct_volume(v.volume));
         }
     }
 }
@@ -243,6 +247,12 @@ void bendOsc(byte osc, int bend, int semitones)
     DEBUG_MSG("Bend osc ", bend, " from ", current, " to ", bent);
 
     updateFreq(v.chip, v.chip_channel, bent);
+}
+
+void signalOscVolumeChange(byte osc)
+{
+    OscState& v = oscs[osc % VOICES_COUNT];
+    updateVolume(v.chip, v.chip_channel, v.channel->correct_volume(v.volume));
 }
 
 void stopOsc(byte osc) {

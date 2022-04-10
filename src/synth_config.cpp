@@ -13,7 +13,30 @@
 #define VOICE_L (0b1100)
 
 SynthChannel synthChannels[16] = {
-    // Nice note
+    SynthChannel::makePolyphonic(0, VOICE_0, { .attack = 5, .decay = 200, .sustain = 12, .rel = 500 }, 2 ),
+    SynthChannel::makePolyphonic(1, VOICE_1, { .attack = 5, .decay = 200, .sustain = 12, .rel = 200 }, 1 ),
+    SynthChannel::makePolyphonic(2, VOICE_1, { .attack = 5, .decay = 200, .sustain = 12, .rel = 200 }, 1 ),
+
+    SynthChannel::makePolyphonic(3, VOICE_2, { .attack = 5, .decay = 200, .sustain = 11, .rel = 500 }, 2 ),
+    SynthChannel::makePolyphonic(4, VOICE_3, { .attack = 5, .decay = 500, .sustain = 12, .rel = 200 }, 1 ),
+    SynthChannel::makePolyphonic(5, VOICE_3, { .attack = 5, .decay = 500, .sustain = 12, .rel = 200 }, 1 ),
+
+    // Full polyphony
+    SynthChannel::makePolyphonic(6, VOICE_L, { .attack = 20, .decay = 200, .sustain = 12, .rel = 500 }, 4 ),
+    SynthChannel::makePolyphonic(7, VOICE_R, { .attack = 20, .decay = 200, .sustain = 12, .rel = 500 }, 4 ),
+    SynthChannel::makeNone(),
+
+    SynthChannel::makeNone(),
+    SynthChannel::makeNone(),
+    SynthChannel::makeNone(),
+
+    SynthChannel::makeNone(),
+    SynthChannel::makeDrum(13, VOICE_L, 2 ),
+    SynthChannel::makeDrum(14, VOICE_R, 2 ),
+
+    SynthChannel::makeNone(),
+   
+    /*// Nice note
     SynthChannel::makePolyphonic(0, VOICE_0, { .attack = 5, .decay = 200, .sustain = 8, .rel = 500 }, 2 ),
     SynthChannel::makePolyphonic(1, VOICE_1, { .attack = 5, .decay = 100, .sustain = 12, .rel = 200 }, 1 ),
     SynthChannel::makePolyphonic(2, VOICE_1, { .attack = 5, .decay = 100, .sustain = 14, .rel = 250 }, 1 ),
@@ -35,7 +58,7 @@ SynthChannel synthChannels[16] = {
     SynthChannel::makeDrum      (13, VOICE_L, 2 ),
     SynthChannel::makeDrum      (14, VOICE_R, 2 ),
 
-    SynthChannel::makePolyphonic(15, VOICE_R, { .attack = 20, .decay = 200, .sustain = 8, .rel = 500 }, 4 )
+    SynthChannel::makePolyphonic(15, VOICE_R, { .attack = 20, .decay = 200, .sustain = 8, .rel = 500 }, 4 )*/
 };
 
 // Noise type

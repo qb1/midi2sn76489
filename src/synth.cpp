@@ -38,7 +38,7 @@ void startNoteDrum(const SynthChannel& synth_channel, byte pitch, byte velocity)
         return;
     }
     setVoiceProperties(voice, synth_channel.midiChannel, pitch);
-    startOsc(voice, pitch, velocity, drumDefinitionFromPitch(pitch).envelope, true /* is noise */);
+    startOsc(voice, pitch, velocity, synth_channel, drumDefinitionFromPitch(pitch).envelope, true /* is noise */);
 }
 
 void startNotePolyphonic(const SynthChannel& synth_channel, byte pitch, byte velocity)
@@ -51,7 +51,7 @@ void startNotePolyphonic(const SynthChannel& synth_channel, byte pitch, byte vel
 
     setVoiceProperties(voice, synth_channel.midiChannel, pitch);
     // No legato possible on polyphonic mode
-    startOsc(voice, pitch, velocity, synth_channel.envelope);
+    startOsc(voice, pitch, velocity, synth_channel, synth_channel.envelope);
     // We should probably start the osc pre-bended,
     // but I can't hear any artifact in doing after the fact and the code is simpler so...
     bendOsc(voice, synth_channel.effect.current_bend);
@@ -79,7 +79,7 @@ void startNoteSingle(SynthChannel& synth_channel, byte pitch, byte velocity)
             synth_channel.effect.portamento.position = 0; // Kickstart glissando effect
         }
     } else {
-        startOsc(voice, pitch, velocity, synth_channel.envelope);
+        startOsc(voice, pitch, velocity, synth_channel, synth_channel.envelope);
     }
     bendOsc(voice, synth_channel.effect.current_bend);
 }
@@ -146,6 +146,10 @@ void controlChange(byte channel, byte control, byte bvalue)
         bendChange(channel, value); // Bitwig wtf
         break;
 
+    case 7: // Channel volume
+        volumeChange(channel, value);
+        break;
+
     case 1: // Modulation = vibrato
         synth_channel.effect.vibrato.amount = value;
         break;
@@ -170,7 +174,7 @@ void controlChange(byte channel, byte control, byte bvalue)
         synth_channel.effect.legato = (value >= 64);
         break;        
 
-    case 2: // Portamento time
+    case 5: // Portamento time
         synth_channel.effect.portamento.speed = 15 * value;
         break;
 
@@ -228,6 +232,24 @@ void bendChange(byte channel, byte bvalue)
     for (int i=0; i < VOICES_COUNT; ++i) {
         if (voice_properties[i].channel == synth_channel.midiChannel) {
             bendOsc(i, value);
+        }
+    }
+}
+
+void volumeChange(byte channel, byte value)
+{
+    if (synthChannels[channel].isNone()) {
+        return;
+    }
+    auto& synth_channel = synthChannels[channel];
+
+    DEBUG_MSG("Volume change: value=", value, ", channel=", channel);
+
+    synth_channel.volume = value;
+
+    for (int i=0; i < VOICES_COUNT; ++i) {
+        if (voice_properties[i].channel == synth_channel.midiChannel) {
+            signalOscVolumeChange(i);
         }
     }
 }

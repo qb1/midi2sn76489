@@ -47,6 +47,7 @@ struct SynthChannel {
     Envelope envelope;
     const uint8_t voiceCount;
     VoiceEffect effect; // Must be None if voiceCount > 1
+    byte volume = 127; // From 0 to 127
 
     const byte midiChannel;
 
@@ -66,6 +67,8 @@ struct SynthChannel {
     }
 
     bool isNone() const { return voiceCount == 0; } // No optional :(
+
+    byte correct_volume(byte value) const { return (uint16_t)value * volume / 127; }
 
 private:
     SynthChannel(Type type, int midiChannel, int onChip, const Envelope& envelope, const VoiceEffect& effect, const int voiceCount)
