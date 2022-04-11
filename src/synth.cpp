@@ -74,11 +74,15 @@ void startNoteSingle(SynthChannel& synth_channel, byte pitch, byte velocity)
         if (synth_channel.effect.portamento.speed == 0) {
             moveOsc(voice, pitch);
         } else {            
-            moveOsc(voice, previous_pitch); // A glissando might be on-going, abort it.
+            moveOsc(voice, previous_pitch); // A glissando might be on-going, force pitch.
             synth_channel.effect.portamento.from_pitch = previous_pitch;
             synth_channel.effect.portamento.position = 0; // Kickstart glissando effect
         }
     } else {
+        // Clear any previous on-going portamento there
+        synth_channel.effect.portamento.position = 0xffff;
+        // Reset vibrato
+        synth_channel.effect.modulation.position = 0;
         startOsc(voice, pitch, velocity, synth_channel, synth_channel.envelope);
     }
     bendOsc(voice, synth_channel.effect.current_bend);
@@ -108,7 +112,7 @@ void noteOff(byte channel, byte pitch, byte velocity) {
         return;
     }
     auto& synth_channel = synthChannels[channel];
-
+    
     if (synth_channel.voiceCount > 1) {
         stopNoteOnChannel(synth_channel.midiChannel, pitch);
     } else {

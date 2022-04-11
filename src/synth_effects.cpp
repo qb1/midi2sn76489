@@ -63,7 +63,8 @@ void updateEffects()
                 int16_t from_pitch = synth_channel.effect.portamento.from_pitch;
                 int16_t to_pitch = voice_properties[voice].pitch;
                 int16_t total_bend = to_pitch - from_pitch;
-                int16_t current_bend = 100 * synth_channel.effect.portamento.position / synth_channel.effect.portamento.speed;
+                int16_t current_bend = 100 * (uint32_t)synth_channel.effect.portamento.position / (uint32_t)synth_channel.effect.portamento.speed;
+                DEBUG_MSG("Portamento bending ", from_pitch, ":", to_pitch, " @", current_bend, "%");
                 bendOsc(voice, current_bend, total_bend);
             }
         } else if (synth_channel.effect.modulation.amount != 0 &&
