@@ -8,12 +8,15 @@
 #include "synth_effects.h"
 #include "board.h"
 
-#define ENABLE_DEBUG_LOGS
+// #define ENABLE_DEBUG_LOGS
 #include "logs.h"
 
 void setupSynth() {
     setupVoiceProperties();
     setupSynthOscs();
+
+    // startOsc(0, 80, 15, synthChannels[0], DRUM_KICK);
+    // setVoiceProperties(0, 0, 80);
 }
 
 void updateSynth() {
@@ -38,7 +41,13 @@ void startNoteDrum(const SynthChannel& synth_channel, byte pitch, byte velocity)
         return;
     }
     setVoiceProperties(voice, synth_channel.midiChannel, pitch);
-    startOsc(voice, pitch, velocity, synth_channel, drumDefinitionFromPitch(pitch).envelope, true /* is noise */);
+    const auto& drum_def = drumDefinitionFromPitch(pitch);
+
+    if (drum_def.sample_pgm == nullptr) {
+        startOsc(voice, pitch, velocity, synth_channel, drum_def.envelope, true /* is noise */);
+    } else {
+        startOsc(voice, pitch, velocity, synth_channel, drum_def.sample_pgm);
+    }
 }
 
 void startNotePolyphonic(const SynthChannel& synth_channel, byte pitch, byte velocity)
@@ -89,10 +98,8 @@ void startNoteSingle(SynthChannel& synth_channel, byte pitch, byte velocity)
 }
 
 void noteOn(byte channel, byte pitch, byte velocity) {
-	/*Serial.print("noteOn channel=");
-	Serial.print(channel);
-	Serial.print(", pitch=");
-	Serial.println(pitch);*/
+	DEBUG_MSG("noteOn channel=", channel, ", pitch=", pitch);
+
     if (synthChannels[channel].isNone()) {
         return;
     }
@@ -167,16 +174,16 @@ void controlChange(byte channel, byte control, byte bvalue)
         break;
 
     case 72: // Release time
-        synth_channel.envelope.rel = 25 * value; // From 0 to 3175 ms
+        synth_channel.envelope.rel = 25ul * value; // From 0 to 3175 ms
         break;
     case 73: // Attack time
-        synth_channel.envelope.attack = 5 * value; // From 0 to 635 ms
+        synth_channel.envelope.attack = 5ul * value; // From 0 to 635 ms
         break;
     case 75: // Decay time
-        synth_channel.envelope.decay = 5 * value; // From 0 to 635 ms
+        synth_channel.envelope.decay = 5ul * value; // From 0 to 635 ms
         break;
-    case 64: // Sustain pedal will drive sustain volume (not meant for that use but hey)
-        synth_channel.envelope.sustain = 15 * value / 127;
+    case 74: // Brightness will drive sustain volume (not meant for that use but hey)
+        synth_channel.envelope.sustain = 15ul * value / 127;
         break;
 
     case 68: // Legato footswitch: OFF if < 64

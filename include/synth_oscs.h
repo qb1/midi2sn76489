@@ -6,6 +6,7 @@
  */
 struct Envelope;
 struct SynthChannel;
+struct SamplePoint;
 
 // Called at setup by synth
 void setupSynthOscs();
@@ -16,8 +17,11 @@ void updateSynthOscs();
 // Start (or restart) an oscillator with an envelope
 void startOsc(byte osc, byte pitch, byte velocity, const SynthChannel& channel, const Envelope& envelope, bool pitch_is_noise_control = false);
 
+// Start (or restart) an oscillator with a sample playback
+void startOsc(byte osc, byte pitch, byte velocity, const SynthChannel& channel, const SamplePoint* sample);
+
 // Change oscillator's pitch, do not start or restart it. Will keep current envelope, unless if Release
-void moveOsc(byte osc, byte pitch, bool pitch_is_noise_control = false);
+void moveOsc(byte osc, byte pitch);
 
 // Bend current oscillator's pitch, expressed in signed percent between 0 and 2 semi-tones
 // Do not use on noise channels
@@ -45,3 +49,7 @@ bool isOscLegatoReady(byte osc);
 // Note: if being modulated, does not return current volume but rather
 // target volume - avoids considering attacking note as off
 int  oscTargetVolume(byte osc);
+
+// Force osc off, regardless of state, and set state to Off.
+// Might cause annoying clicks
+void forceOscOff(byte osc);

@@ -73,7 +73,7 @@ struct SynthChannel {
 
     bool isNone() const { return voiceCount == 0; } // No optional :(
 
-    byte correct_volume(int value) const { return min(max(value * volume / 127, 0), 15); }
+    byte correct_volume(int value) const { return value == 0 ? 0 : min(max(value * volume / 127, 1), 15); }
 
 private:
     SynthChannel(Type type, int midiChannel, int onChip, const Envelope& envelope, const VoiceEffect& effect, const int voiceCount)
@@ -87,13 +87,22 @@ private:
     }
 };
 
+struct SamplePoint {
+    uint16_t freq_n;
+    uint8_t amplitude;
+    uint8_t ms;
+};
+
 struct DrumDefinition {
     Envelope envelope;
-    byte noise;
-    byte osc3freq;
+    byte noise = 0;
+    byte osc3freq = 0;
+    const SamplePoint* sample_pgm = nullptr;
 };
 
 extern SynthChannel synthChannels[16];
 extern const DrumDefinition drumDefinitions[12];
 
 const DrumDefinition& drumDefinitionFromPitch(byte pitch);
+
+extern const SamplePoint DRUM_KICK[13] PROGMEM;

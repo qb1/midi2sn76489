@@ -13,18 +13,18 @@
 #define VOICE_L (0b1100)
 
 SynthChannel synthChannels[16] = {
-    SynthChannel::makePolyphonic(0, VOICE_0, { .attack = 5, .decay = 200, .sustain = 12, .rel = 500 }, 2 ),
-    SynthChannel::makePolyphonic(1, VOICE_1, { .attack = 5, .decay = 200, .sustain = 12, .rel = 200 }, 1 ),
-    SynthChannel::makePolyphonic(2, VOICE_1, { .attack = 5, .decay = 200, .sustain = 12, .rel = 200 }, 1 ),
+    /*SynthChannel::makePolyphonic(0, VOICE_0, { .attack = 20, .decay = 200, .sustain = 15, .rel = 400 }, 1 ),
+    SynthChannel::makePolyphonic(1, VOICE_1, { .attack = 20, .decay = 200, .sustain = 15, .rel = 400 }, 1 ),
+    SynthChannel::makePolyphonic(2, VOICE_1, { .attack = 20, .decay = 200, .sustain = 15, .rel = 400 }, 1 ),
 
-    SynthChannel::makePolyphonic(3, VOICE_2, { .attack = 5, .decay = 200, .sustain = 11, .rel = 500 }, 2 ),
-    SynthChannel::makePolyphonic(4, VOICE_3, { .attack = 5, .decay = 500, .sustain = 12, .rel = 200 }, 1 ),
-    SynthChannel::makePolyphonic(5, VOICE_3, { .attack = 5, .decay = 500, .sustain = 12, .rel = 200 }, 1 ),
+    SynthChannel::makeNone(), // SynthChannel::makePolyphonic(3, VOICE_2, { .attack = 5, .decay = 200, .sustain = 11, .rel = 500 }, 2 ),
+    SynthChannel::makeNone(), // SynthChannel::makePolyphonic(4, VOICE_3, { .attack = 5, .decay = 500, .sustain = 12, .rel = 200 }, 1 ),
+    SynthChannel::makeNone(), // SynthChannel::makePolyphonic(5, VOICE_3, { .attack = 5, .decay = 500, .sustain = 12, .rel = 200 }, 1 ),
 
     // Full polyphony
-    SynthChannel::makePolyphonic(6, VOICE_L, { .attack = 20, .decay = 200, .sustain = 12, .rel = 500 }, 4 ),
-    SynthChannel::makePolyphonic(7, VOICE_R, { .attack = 20, .decay = 200, .sustain = 12, .rel = 500 }, 4 ),
-    SynthChannel::makeNone(),
+    SynthChannel::makeNone(), // SynthChannel::makePolyphonic(6, VOICE_L, { .attack = 20, .decay = 200, .sustain = 12, .rel = 500 }, 4 ),
+    SynthChannel::makeNone(), // SynthChannel::makePolyphonic(7, VOICE_R, { .attack = 20, .decay = 200, .sustain = 12, .rel = 500 }, 4 ),
+    SynthChannel::makeNone(), // SynthChannel::makePolyphonic(8, VOICE_R | VOICE_L, { .attack = 20, .decay = 200, .sustain = 12, .rel = 500 }, 8 ),
 
     SynthChannel::makeNone(),
     SynthChannel::makeNone(),
@@ -34,9 +34,9 @@ SynthChannel synthChannels[16] = {
     SynthChannel::makeDrum(13, VOICE_L, 2 ),
     SynthChannel::makeDrum(14, VOICE_R, 2 ),
 
-    SynthChannel::makeNone(),
+    SynthChannel::makeNone(),*/
    
-    /*// Nice note
+    // Nice note
     SynthChannel::makePolyphonic(0, VOICE_0, { .attack = 5, .decay = 200, .sustain = 8, .rel = 500 }, 2 ),
     SynthChannel::makePolyphonic(1, VOICE_1, { .attack = 5, .decay = 100, .sustain = 12, .rel = 200 }, 1 ),
     SynthChannel::makePolyphonic(2, VOICE_1, { .attack = 5, .decay = 100, .sustain = 14, .rel = 250 }, 1 ),
@@ -55,10 +55,10 @@ SynthChannel synthChannels[16] = {
     SynthChannel::makePolyphonic(11, VOICE_3, { .attack = 10, .decay = 0, .sustain = 15, .rel = 500 }, 1 ),
 
     SynthChannel::makeNone(),
-    SynthChannel::makeDrum      (13, VOICE_L, 2 ),
-    SynthChannel::makeDrum      (14, VOICE_R, 2 ),
+    SynthChannel::makeDrum      (13, VOICE_L, 1 ),
+    SynthChannel::makeDrum      (14, VOICE_R, 1 ),
 
-    SynthChannel::makePolyphonic(15, VOICE_R, { .attack = 20, .decay = 200, .sustain = 8, .rel = 500 }, 4 )*/
+    SynthChannel::makePolyphonic(15, VOICE_R, { .attack = 20, .decay = 200, .sustain = 8, .rel = 500 }, 4 )
 };
 
 // Noise type
@@ -72,20 +72,36 @@ SynthChannel synthChannels[16] = {
 #define T3 0b011 // Tone generator #3 output
 
 const DrumDefinition drumDefinitions[12] = {
-    { .envelope = { .attack =  0, .decay = 200, .sustain =  0, .rel = 200 }, .noise = WNOISE | T3, .osc3freq =   1 }, // closed hit-hat
-    { .envelope = { .attack = 10, .decay = 300, .sustain =  0, .rel = 300 }, .noise = WNOISE | T3, .osc3freq =   1 }, // open hit-hat
-    { .envelope = { .attack = 10, .decay =  25, .sustain =  8, .rel = 500 }, .noise = WNOISE | T3, .osc3freq =   1 }, // crash
+    { .envelope = { .attack = 1, .decay = 70, .sustain =  0, .rel = 70 }, .noise = WNOISE | T3, .osc3freq =   1 }, // closed hit-hat
+    { .envelope = { .attack = 1, .decay = 300, .sustain =  0, .rel = 300 }, .noise = WNOISE | T3, .osc3freq =   1 }, // open hit-hat
+    { .envelope = { .attack = 1, .decay =  25, .sustain =  8, .rel = 500 }, .noise = WNOISE | T3, .osc3freq =   1 }, // crash
     { .envelope = { .attack = 10, .decay = 350, .sustain =  0, .rel = 350 }, .noise = WNOISE | T3, .osc3freq =  30/4 }, // snare
     { .envelope = { .attack = 10, .decay = 350, .sustain =  0, .rel = 350 }, .noise = WNOISE | T3, .osc3freq = 120/4 }, // kick
     { .envelope = { .attack = 10, .decay = 350, .sustain =  0, .rel = 350 }, .noise = WNOISE | T3, .osc3freq = 160/4 }, // low kick
     { .envelope = { .attack = 10, .decay = 350, .sustain =  0, .rel = 350 }, .noise = PNOISE | T3, .osc3freq = 179/4 }, // musical kick
-    { .envelope = { .attack = 10, .decay = 350, .sustain =  0, .rel = 350 }, .noise = PNOISE | T3, .osc3freq = 30/4 }, // ?
-    { .envelope = { .attack = 10, .decay = 600, .sustain = 15, .rel = 300 }, .noise = WNOISE | T3, .osc3freq =   0 }, //
-    { .envelope = { .attack = 10, .decay = 600, .sustain = 15, .rel = 300 }, .noise = WNOISE | T3, .osc3freq =   0 }, //
-    { .envelope = { .attack = 10, .decay = 600, .sustain = 15, .rel = 300 }, .noise = WNOISE | T3, .osc3freq =   0 }, //
-    { .envelope = { .attack = 10, .decay = 600, .sustain = 15, .rel = 300 }, .noise = WNOISE | T3, .osc3freq =   0 }, //
+    { .envelope = { .attack = 20, .decay = 350, .sustain =  0, .rel = 350 }, .noise = WNOISE | T3, .osc3freq = 64   }, // low low kick?
+    { .envelope = {}, .noise = 0, .osc3freq = 0, .sample_pgm =  DRUM_KICK }, //
+    { .envelope = { .attack = 10, .decay = 600, .sustain = 15, .rel = 300 }, .noise = WNOISE | T3, .osc3freq =   16 }, //
+    { .envelope = { .attack = 10, .decay = 600, .sustain = 15, .rel = 300 }, .noise = WNOISE | T3, .osc3freq =   32 }, //
+    { .envelope = { .attack = 10, .decay = 600, .sustain = 15, .rel = 300 }, .noise = WNOISE | T3, .osc3freq =   64 }, //
 };
 
 const DrumDefinition& drumDefinitionFromPitch(byte pitch) {
     return drumDefinitions[pitch % (sizeof(drumDefinitions) / sizeof(DrumDefinition))];
 }
+
+const SamplePoint DRUM_KICK[13] PROGMEM = {
+    { 260, 7,  1 },
+    { 260, 15, 6 },
+    { 336, 14, 8 },
+    { 429, 12, 10 },
+    { 544, 11, 13 },
+    { 680, 9, 16 },
+    { 839, 8, 20 },
+    { 1018, 6, 24 },
+    { 1023, 5, 29 },
+    { 1023, 3, 34 },
+    { 1023, 2, 39 },
+    { 1023, 1, 45 },
+    { 0, 0, 0 },
+};

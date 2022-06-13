@@ -6,25 +6,27 @@
 #include "board.h"
 #include "synth_internals.h"
 
-// #define ENABLE_DEBUG_LOGS // Careful: some debug logs during interrupt, might get unstable
+// #define ENABLE_DEBUG_LOGS
 #include "logs.h"
 
 struct OscState {
-    enum EnvelopeState {
+    enum State {
         Off,
         Attack,
         Decay,
         Sustain,
         Release,
+        Sample,
     };
 
 	int chip;
     int chip_channel;
 
 	int volume = 0;
+    byte velocity = 0;
     byte pitch = 0;
 
-    EnvelopeState state = Off;
+    State state = Off;
 
     // Volumes corrected for velocity
     byte corrected_attack;
@@ -38,6 +40,12 @@ struct OscState {
 
     byte ticks_since_release = 0;
 
+    struct SampleData {
+        const SamplePoint* point_pgm;
+        byte until_next = 0;
+    };
+
+    SampleData sample;
     Envelope envelope;
     const SynthChannel* channel;
 };
@@ -50,9 +58,7 @@ OscState oscs[VOICES_COUNT];
 // Note: do not set the volume after calling thing function, the interrupts will start acting of it.
 void setOnVolumeSlope(OscState& v, int slope_from, int slope_to, int actual_to, int ms);
 
-// Force osc off, regardless of state, and set state to Off.
-// Might cause annoying clicks
-void forceOscOff(OscState& v);
+byte getVolumeFromVelocity(byte volume, byte velocity);
 
 void setupSynthOscs()
 {
@@ -64,8 +70,9 @@ void setupSynthOscs()
 	}
 }
 
-void forceOscOff(OscState& v)
+void forceOscOff(byte osc) 
 {
+    OscState& v = oscs[osc % VOICES_COUNT];
     // First, ensure interrupts won't mess with our osc.
     v.on_going_slope = false;
     v.state = OscState::Off;
@@ -79,6 +86,10 @@ void moveOscToNextModulation(OscState& v)
         case OscState::Off:
             // Setting a oscillator ON is manually done when noteOff
             DEBUG_MSG("Trying to move osc to next modulation from Off");
+            break;
+        case OscState::Sample:
+            // No envelope on samples
+            DEBUG_MSG("Trying to move osc to next modulation from Sample");
             break;
         case OscState::Attack:
             v.state = OscState::Decay;
@@ -99,10 +110,41 @@ void moveOscToNextModulation(OscState& v)
     updateVolume(v.chip, v.chip_channel, v.channel->correct_volume(v.volume));
 }
 
+void updateSamplePlaying(OscState& v)
+{
+    if (v.sample.until_next < REFRESH_RATE) {
+        ++v.sample.point_pgm;
+        SamplePoint sample_point;
+        memcpy_P(&sample_point, v.sample.point_pgm, sizeof(SamplePoint));
+
+        if (sample_point.freq_n == 0) {
+            // Is Off
+            v.state = OscState::Off;
+            v.sample.point_pgm = nullptr;
+            v.sample.until_next = 0;
+            updateVolume(v.chip, v.chip_channel - 1, 0);
+        }
+        
+        // HACK HACK: osc noise+2
+        updateFreq(v.chip, v.chip_channel - 1, sample_point.freq_n);
+        auto volume = v.channel->correct_volume(getVolumeFromVelocity(sample_point.amplitude, v.velocity));
+        updateVolume(v.chip, v.chip_channel - 1, volume);
+        DEBUG_MSG("Sample: t=", v.sample.until_next, ", to ", sample_point.freq_n, ":", volume, " for ", sample_point.ms);
+        v.sample.until_next = sample_point.ms;
+    } else {
+        v.sample.until_next -= REFRESH_RATE;
+    }
+}
+
 void updateSynthOscs()
 {
 	for (int i=0; i < VOICES_COUNT; ++i){
         OscState& v = oscs[i];
+
+        if (v.state == OscState::Sample) {
+            updateSamplePlaying(v);
+            continue;
+        }
 
         if (not v.on_going_slope) {
             continue;
@@ -149,7 +191,7 @@ void setOnVolumeSlope(OscState& v, int slope_from, int slope_to, int actual_to, 
 
         // Still set the slope to keep the oscillator in the modulation interrupts as expected by caller:
         // might get moved to next mod state on the next tick
-        v.tick_counter = 1;
+        v.tick_counter = 2; // At least one full tick
         v.ticks_per_step = 1;
         v.amount_per_step = 0;
         v.objective = v.volume;
@@ -158,7 +200,7 @@ void setOnVolumeSlope(OscState& v, int slope_from, int slope_to, int actual_to, 
     }
 
     int steps_count = ms / REFRESH_RATE;
-    int amount = slope_to - slope_from;
+    int amount = actual_to - slope_from;
 
     if (abs(amount) >= steps_count) {
 		v.ticks_per_step = 1;
@@ -179,7 +221,9 @@ void setOnVolumeSlope(OscState& v, int slope_from, int slope_to, int actual_to, 
 
 byte getVolumeFromVelocity(byte volume, byte velocity)
 {
-    return (unsigned int)(volume) * velocity / 127;
+    if (volume == 0)
+        return 0;
+    return max((unsigned int)(volume) * (unsigned int)velocity / 127, 1);
 }
 
 void startOsc(byte osc, byte pitch, byte velocity, const SynthChannel& channel, const Envelope& envelope, bool pitch_is_noise_control) {
@@ -198,9 +242,12 @@ void startOsc(byte osc, byte pitch, byte velocity, const SynthChannel& channel, 
     v.corrected_attack = getVolumeFromVelocity(15, velocity);
     v.corrected_sustain = getVolumeFromVelocity(v.envelope.sustain, velocity);
     v.pitch = pitch;
+    v.velocity = velocity;
 
     if (pitch_is_noise_control) {
-        updateFreq(v.chip, 2, drumDefinitionFromPitch(pitch).osc3freq);
+        // HACK HACK: osc noise+2
+        updateVolume(v.chip, v.chip_channel - 1, 0);
+        updateFreq(v.chip, v.chip_channel - 1, drumDefinitionFromPitch(pitch).osc3freq);        
         updateNoise(v.chip, drumDefinitionFromPitch(pitch).noise);
     } else {
         updateFreq(v.chip, v.chip_channel, pitch_value(pitch));
@@ -211,24 +258,50 @@ void startOsc(byte osc, byte pitch, byte velocity, const SynthChannel& channel, 
     setOnVolumeSlope(v, 0, 15, v.corrected_attack, envelope.attack);
 }
 
-void moveOsc(byte osc, byte pitch, bool pitch_is_noise_control)
+void startOsc(byte osc, byte pitch, byte velocity, const SynthChannel& channel, const SamplePoint* sample)
+{
+    OscState& v = oscs[osc % VOICES_COUNT];
+
+    DEBUG_MSG("Start osc sample ", osc);
+
+    // Fist step is to disable the slope, so the interrupts won't mess with our volume
+	v.on_going_slope = false;
+    v.channel = &channel;
+    v.envelope = Envelope();
+    v.corrected_attack = 0;
+    v.corrected_sustain = 0;
+    v.pitch = pitch;
+    v.velocity = velocity;
+
+    // Start the oscillator (or set the slope)
+    v.sample.point_pgm = sample;
+    SamplePoint sample_point;
+    memcpy_P(&sample_point, v.sample.point_pgm, sizeof(SamplePoint));
+
+    v.sample.until_next = sample_point.ms;
+
+    // HACK HACK: osc noise+2
+    updateVolume(v.chip, v.chip_channel, 0); // clicks :(
+    updateFreq(v.chip, v.chip_channel - 1, sample_point.freq_n);
+    auto volume = v.channel->correct_volume(getVolumeFromVelocity(sample_point.amplitude, v.velocity));
+    updateVolume(v.chip, v.chip_channel - 1, volume);
+    DEBUG_MSG("Start osc ", osc, ", at ", sample_point.freq_n, ":", volume, " for ", sample_point.ms);
+    v.state = OscState::Sample;    
+}
+
+void moveOsc(byte osc, byte pitch)
 {
     OscState& v = oscs[osc % VOICES_COUNT];
 
     v.pitch = pitch;
 
-    if (pitch_is_noise_control) {
-        updateFreq(v.chip, 2, drumDefinitionFromPitch(pitch).osc3freq);
-        updateNoise(v.chip, drumDefinitionFromPitch(pitch).noise);
-    } else {        
-        updateFreq(v.chip, v.chip_channel, pitch_value(pitch));
-        if (v.state == OscState::Release) {
-            // Was set to release, take it back to sustain
-            v.on_going_slope = false;
-            v.state = OscState::Sustain;
-            v.volume = v.corrected_sustain;
-            updateVolume(v.chip, v.chip_channel, v.channel->correct_volume(v.volume));
-        }
+    updateFreq(v.chip, v.chip_channel, pitch_value(pitch));
+    if (v.state == OscState::Release) {
+        // Was set to release, take it back to sustain
+        v.on_going_slope = false;
+        v.state = OscState::Sustain;
+        v.volume = v.corrected_sustain;
+        updateVolume(v.chip, v.chip_channel, v.channel->correct_volume(v.volume));
     }
 }
 
@@ -271,6 +344,11 @@ void tremoloOsc(byte osc, int value)
 
 void stopOsc(byte osc) {
     OscState& v = oscs[osc % VOICES_COUNT];
+
+    if (v.state == OscState::Sample) {
+        // Not handled for now.
+        return;
+    }
 
     v.state = OscState::Release;
     // If no sustain, release slope will apply similarly to decay slope, from the top

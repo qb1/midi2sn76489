@@ -48,7 +48,8 @@ void updateEffects()
 
         auto channel = voice_properties[voice].channel;
         if (channel > 16) {
-            ERROR_MSG("Active voice with non-sensical channel ", channel)
+            //ERROR_MSG("Active voice with non-sensical channel ", channel)
+            continue;
         }
 
         auto& synth_channel = synthChannels[channel];

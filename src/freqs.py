@@ -143,11 +143,22 @@ clock_frequency = 16e6
 output_freq = clock_frequency / clock_divider
 
 midi_freqs = get_midi_freqs()
-dividers = [(i, n, f, output_freq / (32 * f)) for (i, n, f) in midi_freqs]
-dividers = [(i, n, f, d, round(min(d, (1<<10) - 1))) for (i, n, f, d) in dividers]
-dividers = [(i, n, f, d, int_d, abs(int_d - d) * 100 / d) for (i, n, f, d, int_d) in dividers]
+# dividers = [(i, n, f, output_freq / (32 * f)) for (i, n, f) in midi_freqs]
+# dividers = [(i, n, f, d, round(min(d, (1<<10) - 1))) for (i, n, f, d) in dividers]
+# dividers = [(i, n, f, d, int_d, abs(int_d - d) * 100 / d) for (i, n, f, d, int_d) in dividers]
 
 print("const unsigned int NOTES[128] PROGMEM = {")
-for (index, name, freq, divider, int_divider, err) in dividers:
-	print("    {} /* {}: {} freq={:.2f}, divider={:.2f}, err={:.2f}% */,".format(int_divider, index, name, freq, divider, err))
+prev_freq = None
+for (index, name, freq) in midi_freqs:
+	divider = output_freq / (32 * freq)
+	int_divider = round(min(divider, (1<<10) - 1))
+	freq_from_int = output_freq / (32 * int_divider)
+	freq_err = abs(freq_from_int - freq) * 100 / freq
+	step_err = 0.0
+	if prev_freq is not None:
+		step = abs(freq - prev_freq)
+		step_err = abs(freq_from_int - freq) * 100 / step
+	prev_freq = freq	
+	print(f"    {int_divider} /* {index}: {name} " + 
+	      f"freq={freq:.2f}, divider={divider:.2f}, err={freq_err:.2f}%, step_err={step_err:.2f}% */")
 print("};")
